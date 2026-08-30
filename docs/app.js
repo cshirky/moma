@@ -27,6 +27,22 @@ const STAGES = [
   { n: 7, gap: 2 }
 ];
 
+/* The worst a stage can go is n-1 moves (getting the order exactly backwards),
+ * so a clean run across the ladder is worth the sum of those. Derived from
+ * STAGES rather than hard-coded, so changing the ladder can't leave the score
+ * out of step with what's achievable. */
+const MAX_SCORE = STAGES.reduce((t, s) => t + s.n - 1, 0);
+
+/* Bands as specified. Note these sit above measured random play, which
+ * averages about 8.8 of 20 — see CLAUDE.md. Retune here. */
+const BANDS = [
+  { min: 20, label: 'Perfect' },
+  { min: 17, label: 'Very Good' },
+  { min: 14, label: 'Good' },
+  { min: 10, label: 'Close to Random' },
+  { min: 0,  label: 'Worse than Random' }
+];
+
 const el = (id) => document.getElementById(id);
 
 const state = {
@@ -319,6 +335,9 @@ function startStage(index) {
   state.stageIndex = index;
   state.works = drawStage(stage);
   state.works.forEach((w) => state.usedIds.add(w.id));
+  // Replayed stages replace their paintings rather than adding to the run.
+  state.seen = state.seen.filter((s) => s.stage !== index)
+                         .concat(state.works.map((w) => ({ stage: index, work: w })));
   state.order = dealtOrder(state.works);
   state.cardEls = new Map();
   state.slotEls = [];
@@ -523,6 +542,16 @@ function showResults() {
     (moves ? `, and ${moves === 1 ? 'one move' : moves + ' moves'} from a clean sweep` : '') +
     '. Each stage drew a fresh set of paintings on view at MoMA — play again for a different run.';
 
+  const score = MAX_SCORE - moves;
+  el('score-num').textContent = String(score);
+  el('score-of').textContent = ` of ${MAX_SCORE}`;
+  const band = BANDS.find((b) => score >= b.min);
+  el('score-band').textContent = band.label;
+  el('score-band').className = 'score-band ' +
+    (score === MAX_SCORE ? 'is-pass' : score >= 14 ? 'is-close' : 'is-fail');
+
+  buildVisitList();
+
   const list = el('scorecard');
   list.innerHTML = '';
   STAGES.forEach((stage, i) => {
@@ -542,6 +571,101 @@ function showResults() {
   });
 }
 
+/* --------------------------------------------------- the closing painting list */
+
+/* Every painting the run showed, merged out of its stages into one timeline.
+ * Oldest first: as a takeaway list this reads as a chronology, where the
+ * board's newest-on-top was a puzzle convention. */
+function buildVisitList() {
+  const works = state.seen.map((s) => s.work).sort((a, b) => a.year - b.year);
+  el('visit-head').textContent =
+    `Your ${works.length} paintings, oldest to newest`;
+
+  const list = el('painting-list');
+  list.innerHTML = '';
+  works.forEach((w) => {
+    const li = document.createElement('li');
+    const id = `see-${w.id}`;
+    li.innerHTML =
+      `<input type="checkbox" id="${id}" data-id="${escapeHtml(w.id)}">` +
+      `<img src="${escapeHtml(w.image)}" alt="" referrerpolicy="no-referrer">` +
+      `<label for="${id}">` +
+        `<span class="pl-year">${w.year}</span>` +
+        `<span class="pl-title">${escapeHtml(w.title)}</span>` +
+        `<span class="pl-artist">${escapeHtml(w.artist)}</span>` +
+        (w.gallery ? `<span class="pl-where">${escapeHtml(w.gallery)}</span>` : '') +
+      `</label>`;
+    list.appendChild(li);
+  });
+
+  el('map-out').hidden = true;
+  updateTickCount();
+}
+
+function ticked() {
+  return Array.from(el('painting-list').querySelectorAll('input:checked'))
+    .map((box) => state.seen.find((s) => s.work.id === box.dataset.id).work);
+}
+
+function updateTickCount() {
+  const n = ticked().length;
+  el('tick-count').textContent = n
+    ? `${n} painting${n === 1 ? '' : 's'} ticked`
+    : 'Nothing ticked yet';
+  el('btn-map').disabled = n === 0;
+}
+
+/* "MoMA, Floor 5, 501" -> { floor: 5, room: "501" }. Some works give only a
+ * floor, so the room is optional. */
+function parseGallery(gallery) {
+  const m = /Floor\s+(\w+)(?:\s*,\s*(.+))?$/i.exec(gallery || '');
+  if (!m) return { floor: null, room: null, raw: gallery || '' };
+  return { floor: Number(m[1]) || m[1], room: m[2] || null, raw: gallery };
+}
+
+/* MoMA hangs its collection chronologically from the fifth floor down, so
+ * walking the floors in descending order is both the natural route and
+ * roughly the order these paintings were made. */
+function buildMap() {
+  const chosen = ticked();
+  const floors = new Map();
+  chosen.forEach((w) => {
+    const g = parseGallery(w.gallery);
+    const key = g.floor === null ? 'Elsewhere in the museum' : `Floor ${g.floor}`;
+    if (!floors.has(key)) floors.set(key, { sort: g.floor === null ? -1 : g.floor, rooms: [] });
+    floors.get(key).rooms.push({ room: g.room, work: w });
+  });
+
+  const order = Array.from(floors.entries()).sort((a, b) => b[1].sort - a[1].sort);
+  const rooms = new Set(chosen.map((w) => parseGallery(w.gallery).room).filter(Boolean));
+
+  let html =
+    `<h4>Your visit — ${chosen.length} painting${chosen.length === 1 ? '' : 's'}` +
+    (rooms.size ? ` across ${rooms.size} room${rooms.size === 1 ? '' : 's'}` : '') + `</h4>` +
+    `<p class="muted fine">MoMA hangs the collection chronologically from the top down, ` +
+    `so this route runs highest floor first.</p>`;
+
+  order.forEach(([floorName, data]) => {
+    data.rooms.sort((a, b) => String(a.room).localeCompare(String(b.room), undefined, { numeric: true }));
+    html += `<div class="map-floor"><h5>${escapeHtml(floorName)}</h5><ul>`;
+    data.rooms.forEach(({ room, work }) => {
+      html += `<li><span class="map-room">${room ? escapeHtml(room) : '—'}</span>` +
+              `<span><em>${escapeHtml(work.title)}</em>, ${escapeHtml(work.artist)}, ${work.year}</span></li>`;
+    });
+    html += `</ul></div>`;
+  });
+
+  html += `<p class="muted fine">Gallery locations come from MoMA's own on-view data ` +
+          `and can change when the museum rehangs — check moma.org before you go.</p>` +
+          `<button class="btn" id="btn-print">Print this list</button>`;
+
+  const out = el('map-out');
+  out.innerHTML = html;
+  out.hidden = false;
+  el('btn-print').addEventListener('click', () => window.print());
+  out.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 /* ------------------------------------------------------------------- shell */
 
 function show(id) {
@@ -554,6 +678,7 @@ function show(id) {
 function newRun() {
   state.results = [];
   state.usedIds = new Set();
+  state.seen = [];
   show('screen-play');
   startStage(0);
 }
@@ -572,6 +697,9 @@ function init() {
   el('pool-note').textContent =
     `Drawing from ${PAINTINGS.length} paintings by ${artists} artists, ` +
     `${Math.min(...years)}–${Math.max(...years)}, all currently on view.`;
+
+  el('painting-list').addEventListener('change', updateTickCount);
+  el('btn-map').addEventListener('click', buildMap);
 
   el('btn-start').addEventListener('click', newRun);
   el('btn-again').addEventListener('click', newRun);

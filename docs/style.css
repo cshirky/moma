@@ -424,3 +424,125 @@ body.is-dragging, body.is-dragging .card { cursor: grabbing; }
 /* Board held until the stage's paintings have loaded. */
 .is-loading .board { opacity: 0.25; pointer-events: none; }
 .is-loading .instruction::after { content: " — loading paintings…"; }
+
+/* ---------- results: score, painting list, gallery map ---------- */
+
+.card-panel-wide { max-width: 720px; }
+
+.score-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0 18px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 18px;
+}
+.score-num {
+  margin: 0;
+  font-size: 3.1rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.score-of { font-size: 1rem; font-weight: 400; color: var(--text-dim); margin-left: 4px; }
+.score-band {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.score-band.is-pass { color: var(--right); }
+.score-band.is-close { color: var(--accent); }
+.score-band.is-fail { color: var(--wrong); }
+
+.visit { margin: 26px 0 22px; border-top: 1px solid var(--border); padding-top: 20px; }
+.visit h3 { margin: 0 0 6px; font-size: 1.02rem; }
+
+.painting-list {
+  list-style: none;
+  margin: 14px 0;
+  padding: 0 4px 0 0;
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.painting-list li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.painting-list li:last-child { border-bottom: none; }
+.painting-list input { flex-shrink: 0; width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; }
+.painting-list img {
+  width: 52px; height: 44px;
+  object-fit: contain;
+  flex-shrink: 0;
+  background: #0f1114;
+  border-radius: 3px;
+}
+.painting-list label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1px 9px;
+  align-items: baseline;
+  cursor: pointer;
+  min-width: 0;
+  font-size: 0.84rem;
+}
+.pl-year { grid-row: 1 / span 2; color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+.pl-title { font-style: italic; }
+.pl-artist { color: var(--text-dim); font-size: 0.79rem; }
+.pl-where { grid-column: 2; color: var(--text-dim); font-size: 0.72rem; }
+
+.visit-actions { display: flex; align-items: center; gap: 12px; }
+
+.map-out {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+.map-out h4 { margin: 0 0 4px; font-size: 0.98rem; }
+.map-floor { margin-top: 14px; }
+.map-floor h5 {
+  margin: 0 0 6px;
+  font-size: 0.7rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.map-floor ul { list-style: none; margin: 0; padding: 0; }
+.map-floor li {
+  display: flex;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+.map-floor li:last-child { border-bottom: none; }
+.map-room {
+  flex-shrink: 0;
+  min-width: 44px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+.map-out .btn { margin-top: 14px; }
+
+/* Taking the list to the museum: print only the route. */
+@media print {
+  body { background: #fff; color: #000; }
+  .app-header, .app-footer, .score-block, #done-title, #done-line,
+  .scorecard, .visit > h3, .visit > p, .painting-list, .visit-actions,
+  #btn-again { display: none !important; }
+  .card-panel, .map-out { border: none; background: none; padding: 0; }
+  .map-floor h5, .pl-year { color: #000; }
+  .map-out .btn { display: none !important; }
+}

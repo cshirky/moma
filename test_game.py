@@ -162,7 +162,57 @@ def main():
         # 3+6+10+15+21 pairs across the five stages
         check("results: run total is 55 of 55 calls",
               "55 of 55" in page.inner_text("#done-line"), page.inner_text("#done-line"))
-        page.screenshot(path="/tmp/chrono_results.png")
+
+        print("\n== score out of 20 ==")
+        check("a perfect run scores 20 of 20",
+              page.inner_text("#score-num").strip() == "20", page.inner_text("#score-num"))
+        # the band is upper-cased by CSS, so compare case-insensitively
+        check("and is labelled Perfect",
+              page.inner_text("#score-band").strip().lower() == "perfect",
+              page.inner_text("#score-band"))
+        for sc, want in [(20,"Perfect"),(19,"Very Good"),(17,"Very Good"),(16,"Good"),
+                         (14,"Good"),(13,"Close to Random"),(10,"Close to Random"),
+                         (9,"Worse than Random"),(0,"Worse than Random")]:
+            got = page.evaluate("(s)=>BANDS.find(b=>s>=b.min).label", sc)
+            check(f"score {sc} -> {want}", got == want, got)
+        check("max score is derived from the ladder, not hard-coded",
+              page.evaluate("MAX_SCORE") == 20 and
+              page.evaluate("STAGES.reduce((t,s)=>t+s.n-1,0)") == 20)
+
+        print("\n== the closing painting list ==")
+        rows = page.locator("#painting-list li")
+        check("all 25 paintings are listed", rows.count() == 25, str(rows.count()))
+        years = page.evaluate("""()=>[...document.querySelectorAll('#painting-list .pl-year')]
+                                    .map(e=>+e.textContent)""")
+        check("listed oldest to newest", years == sorted(years), str(years))
+        check("no painting repeats across a run",
+              len(set(page.evaluate("()=>[...document.querySelectorAll('#painting-list input')].map(i=>i.dataset.id)"))) == 25)
+        check("the list scrolls rather than running off the page",
+              page.evaluate("()=>{const l=document.getElementById('painting-list');"
+                            "return l.scrollHeight > l.clientHeight;}"))
+        check("every row has a thumbnail and a checkbox",
+              page.locator("#painting-list img").count() == 25
+              and page.locator("#painting-list input[type=checkbox]").count() == 25)
+        check("map button starts disabled", page.is_disabled("#btn-map"))
+
+        print("\n== ticking paintings and building a map ==")
+        for i in range(5):
+            page.locator("#painting-list input").nth(i).check()
+        check("tick count updates", "5 paintings ticked" in page.inner_text("#tick-count"),
+              page.inner_text("#tick-count"))
+        check("map button enables once something is ticked", not page.is_disabled("#btn-map"))
+        page.click("#btn-map")
+        page.wait_for_selector("#map-out:not([hidden])")
+        check("map lists the ticked paintings",
+              page.locator("#map-out .map-floor li").count() == 5,
+              str(page.locator("#map-out .map-floor li").count()))
+        check("map groups them by floor", page.locator("#map-out .map-floor").count() >= 1)
+        floors = page.evaluate("""()=>[...document.querySelectorAll('#map-out .map-floor h5')]
+                                     .map(e=>e.textContent)""")
+        nums = [int(f.split()[-1]) for f in floors if f.startswith("Floor")]
+        check("floors run highest first", nums == sorted(nums, reverse=True), str(floors))
+        check("map offers a print button", page.locator("#btn-print").count() == 1)
+        page.screenshot(path="/tmp/chrono_results.png", full_page=True)
 
         print("\n== drag reordering ==")
         page.click("#btn-again"); ready(page)

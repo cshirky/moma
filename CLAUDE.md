@@ -115,6 +115,38 @@ one-drag-from-correct board that the old rule scored zero on, and checks that
 amber and red land on the right stages. Keep those cases passing if you touch
 the scoring.
 
+## The final score
+
+The results screen scores the run out of **20** — `MAX_SCORE`, derived from
+`STAGES` as the sum of `n-1`, because the worst a stage can go is getting it
+exactly backwards. Score is `20 - total moves`, banded in `BANDS`.
+
+**The bands sit above measured random play, deliberately.** Random shuffling
+averages **8.8 of 20** (median 9, 5th-95th percentile 6-11 over 200,000
+simulated runs), so a genuinely random run is labelled "Worse than Random"
+about 68% of the time and "Close to Random" the other 32%. This was the
+user's explicit choice; to make the labels self-consistent instead, move the
+"Close to Random" floor to 7 and "Good" to 13. Both numbers live in `BANDS`.
+
+Worth knowing if you revisit the metrics: weighting a move by how far it
+travels does **not** give a new measure — the minimum distance-weighted cost
+to sort equals the inversion count exactly, verified over every arrangement
+up to n=7. So "moves" and "before-and-after calls" are already the unweighted
+and weighted versions of the same idea, and there is no third metric to add.
+
+## The closing painting list
+
+All 25 paintings from the run, merged out of their stages into one timeline,
+oldest first (the board's newest-on-top is a puzzle convention, not a reading
+one). Each row has a checkbox; ticking any and pressing **Make my map**
+produces a route grouped by floor, highest floor first, because MoMA hangs
+the collection chronologically from the top down.
+
+**Nothing is emailed.** The site is static with no backend, so "send me a
+map" is honoured as an on-screen route plus a print button (`@media print`
+hides everything but the route). Adding real email delivery would mean adding
+a server, which this project does not have.
+
 ## Interaction
 
 Each input has exactly one meaning, so nothing competes:
