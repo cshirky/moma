@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chronology — MoMA Paintings on View</title>
+<meta name="description" content="Order MoMA paintings by the year they were made. Five stages, each harder than the last.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <h1>Chronology</h1>
+  <p class="subtitle">Put MoMA&rsquo;s paintings in the order they were made</p>
+</header>
+
+<!-- Start screen -->
+<section id="screen-start" class="screen">
+  <div class="card-panel">
+    <h2>Five stages. Each one harder.</h2>
+    <p>You&rsquo;ll be shown paintings currently hanging at MoMA. Drag them from
+    the tray into the column so the <strong>most recent is on top</strong> and the
+    <strong>oldest is on the bottom</strong>.</p>
+    <p class="muted">You never need to know the year &mdash; only which painting came
+    before which. As the stages go on you&rsquo;ll get more paintings, and the
+    years between them get closer together.</p>
+    <ul class="ladder" id="ladder"></ul>
+    <button class="btn btn-primary btn-lg" id="btn-start">Start</button>
+    <p class="muted fine" id="pool-note"></p>
+  </div>
+</section>
+
+<!-- Play screen -->
+<section id="screen-play" class="screen" hidden>
+  <div class="stage-bar">
+    <ol class="pips" id="pips"></ol>
+    <p class="stage-line"><span id="stage-label"></span><span class="sep">&middot;</span><span id="stage-rule" class="muted"></span></p>
+  </div>
+
+  <div class="board">
+    <div class="rank-axis" aria-hidden="true">
+      <span class="rank-end">Most recent</span>
+      <span class="rank-line"></span>
+      <span class="rank-end">Oldest</span>
+    </div>
+    <ol class="column" id="column" aria-label="Your ordering, most recent at the top"></ol>
+  </div>
+
+  <div class="tray-wrap">
+    <p class="tray-label" id="tray-label">Tray</p>
+    <div class="tray" id="tray" aria-label="Unplaced paintings"></div>
+  </div>
+
+  <div class="actions">
+    <p class="verdict" id="verdict" role="status" aria-live="polite"></p>
+    <button class="btn btn-primary btn-lg" id="btn-submit" disabled>Submit</button>
+    <button class="btn btn-primary btn-lg" id="btn-next" hidden>Next stage</button>
+    <button class="btn btn-ghost" id="btn-shuffle">Reset stage</button>
+  </div>
+</section>
+
+<!-- Results screen -->
+<section id="screen-done" class="screen" hidden>
+  <div class="card-panel">
+    <h2 id="done-title"></h2>
+    <p id="done-line" class="muted"></p>
+    <ol class="scorecard" id="scorecard"></ol>
+    <button class="btn btn-primary btn-lg" id="btn-again">Play again</button>
+  </div>
+</section>
+
+<div class="drag-layer" id="drag-layer" aria-hidden="true"></div>
+
+<footer class="app-footer">
+  <p>Images and data from <a href="https://github.com/MuseumofModernArt/collection" target="_blank" rel="noopener">The Museum of Modern Art&rsquo;s public collection dataset</a>.
+  Paintings shown are on view at MoMA as of the most recent data refresh.</p>
+</footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

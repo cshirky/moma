@@ -1,0 +1,369 @@
+/* Chronology — MoMA paintings ordering game.
+   Palette follows the sibling museum_flashcards project so the two read as
+   a family. All layout lives here; app.js only toggles classes and sets the
+   --n custom property (paintings in the current stage) used to size cards. */
+
+:root {
+  --bg: #16181d;
+  --panel: #1f2229;
+  --panel-2: #262a33;
+  --border: #343945;
+  --text: #eceef1;
+  --text-dim: #9aa1ad;
+  --accent: #d9a441;
+  --right: #4caf7d;
+  --wrong: #d9605f;
+  --radius: 10px;
+  --n: 3;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-text-size-adjust: 100%;
+}
+
+a { color: var(--accent); }
+
+.app-header {
+  padding: 14px 20px 11px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.app-header h1 {
+  margin: 0 0 4px;
+  font-size: 1.5rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.subtitle { margin: 0; color: var(--text-dim); font-size: 0.9rem; }
+
+.screen { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+/* ---------- start + results panels ---------- */
+
+.card-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  max-width: 620px;
+  margin: 24px auto;
+}
+.card-panel h2 { margin: 0 0 14px; font-size: 1.25rem; }
+.card-panel p { line-height: 1.55; margin: 0 0 14px; }
+.muted { color: var(--text-dim); }
+.fine { font-size: 0.8rem; margin-top: 14px; }
+
+.ladder { list-style: none; padding: 0; margin: 18px 0 22px; }
+.ladder li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+.ladder li:last-child { border-bottom: none; }
+.ladder .lad-stage { color: var(--text-dim); }
+
+/* ---------- buttons ---------- */
+
+.btn {
+  font: inherit;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  padding: 9px 16px;
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #201a0c; font-weight: 600; }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-lg { padding: 12px 30px; font-size: 1rem; }
+.btn-ghost { background: none; color: var(--text-dim); }
+
+/* ---------- stage bar ---------- */
+
+.stage-bar {
+  text-align: center;
+  margin-bottom: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg);
+  padding: 8px 0 10px;
+}
+
+.pips { list-style: none; display: flex; justify-content: center; gap: 8px; padding: 0; margin: 0 0 10px; }
+.pips li {
+  width: 30px; height: 5px;
+  border-radius: 3px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+.pips li.is-current { background: var(--accent); border-color: var(--accent); }
+.pips li.is-pass { background: var(--right); border-color: var(--right); }
+.pips li.is-fail { background: var(--wrong); border-color: var(--wrong); }
+
+.stage-line { margin: 0; font-size: 0.9rem; }
+.stage-line .sep { margin: 0 8px; color: var(--border); }
+
+/* ---------- board: the vertical ordering column ---------- */
+
+/* Cards shrink as the stage grows so all --n of them stay on screen without
+   the column itself scrolling away from the tray. */
+.board {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.rank-axis {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+/* Only the two end labels turn sideways; the rail itself stays a normal
+   flex column, or the labels stack on top of each other. */
+.rank-end { writing-mode: vertical-rl; text-orientation: mixed; white-space: nowrap; }
+.rank-line { flex: 1; width: 1px; background: linear-gradient(var(--accent), var(--border)); }
+
+.column { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.slot {
+  --slot-h: clamp(104px, calc((100vh - 330px) / var(--n)), 150px);
+  height: var(--slot-h);
+  width: min(92vw, 760px);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.12s, background 0.12s;
+}
+.slot.is-empty::after {
+  content: attr(data-hint);
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.slot.is-over { border-color: var(--accent); background: var(--panel-2); }
+.slot.is-filled { border-style: solid; padding: 0; }
+
+/* ---------- tray ---------- */
+
+.tray-wrap { margin-top: 18px; }
+.tray-label {
+  margin: 0 0 8px;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-align: center;
+}
+.tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  min-height: 96px;
+  padding: 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  transition: border-color 0.12s, background 0.12s;
+}
+.tray.is-over { border-color: var(--accent); background: var(--panel-2); }
+.tray.is-empty::after {
+  content: "All placed — press Submit";
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+/* ---------- painting cards ---------- */
+
+.card {
+  position: relative;
+  border: 0;
+  padding: 0;
+  background: #0f1114;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;               /* pointer-drag owns the gesture */
+  display: block;
+  outline-offset: 2px;
+}
+.card:focus-visible { outline: 2px solid var(--accent); }
+.card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;              /* never crop a painting */
+  background: #0f1114;
+  pointer-events: none;
+  user-select: none;
+}
+
+.card-img { display: block; height: 100%; flex-shrink: 0; }
+.card-info { display: none; }
+
+/* in the tray: image only */
+.tray .card { width: 128px; height: 96px; }
+.tray .card-img { width: 100%; }
+
+/* seated in a slot: image left, room for the facts on the right */
+.slot .card {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: left;
+}
+.slot .card-img { width: calc(var(--slot-h) * 1.55); }
+.slot.revealed .card { justify-content: flex-start; }
+
+.card.is-held { opacity: 0.35; }
+.card.is-selected { outline: 2px solid var(--accent); }
+
+/* the element that follows the pointer during a drag */
+.drag-layer { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
+.drag-ghost {
+  position: fixed;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 14px 34px rgba(0,0,0,0.6);
+  transform: translate(-50%, -50%) scale(1.04);
+  pointer-events: none;
+  background: #0f1114;
+}
+.drag-ghost img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+/* ---------- reveal state ---------- */
+
+.slot.revealed { border-style: solid; }
+.slot.revealed.ok { border-color: var(--right); }
+.slot.revealed.no { border-color: var(--wrong); }
+
+.slot.revealed .card-info {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  padding: 6px 14px 6px 0;
+  font-size: 0.82rem;
+  line-height: 1.36;
+  color: var(--text);
+}
+.card-info .r-year {
+  display: block;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+.card-info .r-title {
+  font-style: italic;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-info .r-artist { color: var(--text); }
+.card-info .r-where {
+  display: block;
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  margin-top: 2px;
+}
+
+.mark {
+  position: absolute;
+  top: 6px; left: 6px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #12140f;
+}
+.mark.ok { background: var(--right); }
+.mark.no { background: var(--wrong); }
+
+/* ---------- actions ---------- */
+
+.actions { margin-top: 18px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.verdict { margin: 0; min-height: 1.4em; font-size: 0.95rem; }
+.verdict.ok { color: var(--right); }
+.verdict.no { color: var(--wrong); }
+
+/* ---------- scorecard ---------- */
+
+.scorecard { list-style: none; padding: 0; margin: 0 0 22px; }
+.scorecard li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+.scorecard .sc-badge {
+  width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 0.7rem; font-weight: 700; color: #12140f;
+  flex-shrink: 0;
+}
+.scorecard .ok { background: var(--right); }
+.scorecard .no { background: var(--wrong); }
+.scorecard .sc-detail { margin-left: auto; color: var(--text-dim); font-size: 0.8rem; }
+
+.app-footer {
+  margin-top: 30px;
+  padding: 16px 20px 28px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.76rem;
+}
+.app-footer p { margin: 0 auto; max-width: 620px; line-height: 1.5; }
+
+@media (max-width: 640px) {
+  .screen { padding: 14px; }
+  .card-panel { padding: 20px; }
+  .slot { width: 94vw; }
+  .tray .card { width: 96px; height: 74px; }
+  .slot .card-img { width: calc(var(--slot-h) * 1.25); }
+  .slot.revealed .card-info { font-size: 0.74rem; }
+  .card-info .r-year { font-size: 0.92rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* Board held until the stage's paintings have loaded. */
+.is-loading .board, .is-loading .tray { opacity: 0.25; pointer-events: none; }
+.is-loading .tray-label::after { content: " — loading paintings…"; }
