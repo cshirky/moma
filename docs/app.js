@@ -765,9 +765,10 @@ function init() {
   play.addEventListener('keydown', onBoardKey);
 
   el('lightbox-close').addEventListener('click', closeLightbox);
-  el('lightbox').addEventListener('click', (ev) => {
-    if (!ev.target.closest('.lightbox-figure') || ev.target.tagName === 'IMG') closeLightbox();
-  });
+  // Any click anywhere dismisses it — the painting, the caption, the backdrop.
+  // A link inside the caption still follows (it opens in a new tab), so
+  // closing underneath it costs nothing.
+  el('lightbox').addEventListener('click', closeLightbox);
   document.addEventListener('keydown', (ev) => {
     if (ev.key === 'Escape' && !el('lightbox').hidden) closeLightbox();
   });

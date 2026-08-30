@@ -116,8 +116,26 @@ def main():
             check(f"stage {stage+1}: submit available immediately",
                   not page.is_disabled("#btn-submit"))
             if stage == 0:
-                page.click(f'.card[data-id="{current(page)[0]}"]')
-                page.wait_for_selector("#lightbox:not([hidden])")
+                first = f'.card[data-id="{current(page)[0]}"]'
+                page.hover(first)
+                page.wait_for_timeout(500)
+                check("hovering a painting does not open the enlarged view",
+                      page.is_hidden("#lightbox"))
+                check("the enlarge affordance is visible without hovering",
+                      float(page.evaluate("""()=>{const c=document.querySelector('.card-zoom');
+                            return getComputedStyle(c).opacity;}""")) > 0.2)
+
+                page.click(first); page.wait_for_selector("#lightbox:not([hidden])")
+                page.locator("#lightbox-img").click()
+                page.wait_for_selector("#lightbox", state="hidden")
+                check("clicking the painting itself dismisses it", page.is_hidden("#lightbox"))
+
+                page.click(first); page.wait_for_selector("#lightbox:not([hidden])")
+                page.locator("#lightbox-caption").click(force=True)
+                page.wait_for_selector("#lightbox", state="hidden")
+                check("clicking the caption dismisses it too", page.is_hidden("#lightbox"))
+
+                page.click(first); page.wait_for_selector("#lightbox:not([hidden])")
                 check("enlarged view hides the answer before submitting",
                       "hidden until you submit" in page.inner_text("#lightbox-caption"),
                       page.inner_text("#lightbox-caption"))

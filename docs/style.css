@@ -228,17 +228,20 @@ a { color: var(--accent); }
 .card.is-held { opacity: 0.28; }
 body.is-dragging, body.is-dragging .card { cursor: grabbing; }
 
-/* Marks the card as clickable-to-enlarge without competing with the art. */
+/* Marks the card as clickable-to-enlarge without competing with the art.
+   Always visible rather than revealed on hover: a hover-only affordance never
+   appears on a touch screen, and made enlarging look like a rollover feature
+   when it has always been click-driven. */
 .card-zoom {
   position: absolute;
   top: 6px; right: 8px;
   font-size: 0.8rem;
   color: var(--text-dim);
-  opacity: 0;
+  opacity: 0.5;
   transition: opacity 0.12s;
   pointer-events: none;
 }
-.card:hover .card-zoom, .card:focus-visible .card-zoom { opacity: 1; }
+.card:hover .card-zoom, .card:focus-visible .card-zoom { opacity: 0.95; }
 
 
 /* the element that follows the pointer during a drag */
@@ -362,7 +365,6 @@ body.is-dragging, body.is-dragging .card { cursor: grabbing; }
   gap: 3px;
   text-align: center;
   max-width: 60ch;
-  cursor: auto;
 }
 .lb-year { color: var(--accent); font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
 .lb-title { font-style: italic; font-size: 1.02rem; }

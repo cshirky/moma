@@ -232,7 +232,8 @@ scorecard says "answer shown".
 Each input has exactly one meaning, so nothing competes:
 
 - **drag** a painting — reorders, funnelled through `moveTo()`
-- **click** a painting — opens it larger in the lightbox
+- **click** a painting — opens it larger in the lightbox; any click inside
+  the lightbox dismisses it again, including on the painting and the caption
 - **arrow keys** on a focused painting — moves it one place up or down
 - **Enter/Space** on a focused painting — opens the lightbox
 
@@ -240,6 +241,11 @@ Any new input path should call `moveTo()` rather than touch `state.order`.
 Moving is insert-and-shift, not swap: lifting a painting out and re-inserting
 it shifts everything between, which is how people expect "put this one above
 that one" to behave.
+
+Enlarging has always been click-driven, never hover. The `⤢` affordance is
+therefore **always visible**, not revealed on hover: a hover-only cue never
+appears on a touch screen at all, and on a desktop it made the feature look
+like a rollover.
 
 The lightbox deliberately shows **no caption before the stage is submitted** —
 the title and date are the answer. After submitting it shows the full record
