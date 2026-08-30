@@ -115,8 +115,11 @@ a { color: var(--accent); }
   background: var(--panel-2);
   border: 1px solid var(--border);
 }
-.pips li.is-current { background: var(--accent); border-color: var(--accent); }
+/* Hollow marks the stage you're on; filled marks a result. That frees amber
+   to mean "one move away" without colliding with the current-stage pip. */
+.pips li.is-current { background: none; border-color: var(--accent); }
 .pips li.is-pass { background: var(--right); border-color: var(--right); }
+.pips li.is-close { background: var(--accent); border-color: var(--accent); }
 .pips li.is-fail { background: var(--wrong); border-color: var(--wrong); }
 
 .stage-line { margin: 0; font-size: 0.9rem; }
@@ -369,8 +372,9 @@ body.is-dragging, body.is-dragging .card { cursor: grabbing; }
 .verdict { margin: 0; min-height: 1.4em; display: flex; flex-direction: column; gap: 3px; }
 .v-head { font-size: 0.98rem; font-weight: 600; }
 .v-sub { font-size: 0.83rem; color: var(--text-dim); }
-.verdict.ok .v-head { color: var(--right); }
-.verdict.no .v-head { color: var(--accent); }
+.verdict.is-pass .v-head { color: var(--right); }
+.verdict.is-close .v-head { color: var(--accent); }
+.verdict.is-fail .v-head { color: var(--wrong); }
 
 /* ---------- scorecard ---------- */
 
@@ -389,8 +393,9 @@ body.is-dragging, body.is-dragging .card { cursor: grabbing; }
   font-size: 0.7rem; font-weight: 700; color: #12140f;
   flex-shrink: 0;
 }
-.scorecard .ok { background: var(--right); }
-.scorecard .no { background: var(--wrong); }
+.scorecard .is-pass { background: var(--right); }
+.scorecard .is-close { background: var(--accent); }
+.scorecard .is-fail, .scorecard .is-none { background: var(--wrong); }
 .scorecard .sc-detail { margin-left: auto; color: var(--text-dim); font-size: 0.8rem; }
 
 .app-footer {

@@ -103,9 +103,17 @@ off and getting only 30% of the before/after calls right.
   player, and it scales as stages grow: the five stages hold
   3+6+10+15+21 = **55 pairs**.
 
-`test_game.py` pins both against hand-worked cases, including the
-one-drag-from-correct board that the old rule scored zero on. Keep those cases
-passing if you touch the scoring.
+A stage's outcome is one of solved / one move away / further off, decided in
+`outcome()`. The stage pips, the verdict headline and the results scorecard
+all colour themselves from it, so they can't drift apart — green, amber, red.
+The current stage's pip is a *hollow* amber outline rather than filled, which
+is what keeps "you are here" from colliding with "one move away". The
+scorecard badge carries the move count itself (✓, or 1, or 5).
+
+`test_game.py` pins both metrics against hand-worked cases, including the
+one-drag-from-correct board that the old rule scored zero on, and checks that
+amber and red land on the right stages. Keep those cases passing if you touch
+the scoring.
 
 ## Interaction
 

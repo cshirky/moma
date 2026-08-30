@@ -341,7 +341,7 @@ function startStage(index) {
   STAGES.forEach((_, i) => {
     const li = document.createElement('li');
     const past = state.results[i];
-    if (past) li.className = past.perfect ? 'is-pass' : 'is-fail';
+    if (past) li.className = 'is-' + outcome(past);
     else if (i === index) li.className = 'is-current';
     pips.appendChild(li);
   });
@@ -375,6 +375,14 @@ function startStage(index) {
 }
 
 /* -------------------------------------------------------------- scoring */
+
+/* Solved / one move away / further off. Everything that reports a stage's
+ * outcome derives its colour from this, so they always agree. */
+function outcome(result) {
+  if (!result) return 'none';
+  if (result.perfect) return 'pass';
+  return result.moves === 1 ? 'close' : 'fail';
+}
 
 /* Exact-position marking is both harsh and inconsistent for an ordering task:
  * dragging the newest painting to the bottom scores zero despite being one
@@ -462,8 +470,9 @@ function submit() {
     pairsRight: pairs.right, pairsTotal: pairs.total
   };
 
+  const how = outcome(state.results[state.stageIndex]);
   const verdict = el('verdict');
-  verdict.className = `verdict ${perfect ? 'ok' : 'no'}`;
+  verdict.className = `verdict is-${how}`;
   verdict.innerHTML = perfect
     ? '<span class="v-head">Correct — that’s the right order.</span>' +
       `<span class="v-sub">All ${pairs.total} before-and-after calls right.</span>`
@@ -472,7 +481,7 @@ function submit() {
       `move the marked painting${moves === 1 ? '' : 's'}.</span>`;
   el('instruction').textContent = 'Click any painting to see it larger';
 
-  el('pips').children[state.stageIndex].className = perfect ? 'is-pass' : 'is-fail';
+  el('pips').children[state.stageIndex].className = 'is-' + how;
 
   const upcoming = STAGES[state.stageIndex + 1];
   if (upcoming) {
@@ -519,11 +528,14 @@ function showResults() {
   STAGES.forEach((stage, i) => {
     const r = state.results[i];
     const li = document.createElement('li');
+    const how = outcome(r);
     const detail = !r ? '—'
       : r.perfect ? `solved · ${r.pairsRight}/${r.pairsTotal} calls`
       : `${r.moves === 1 ? '1 move' : r.moves + ' moves'} away · ${r.pairsRight}/${r.pairsTotal} calls`;
+    // The badge carries the move count, so a near miss reads as a near miss.
+    const badge = !r ? '—' : r.perfect ? '✓' : String(r.moves);
     li.innerHTML =
-      `<span class="sc-badge ${r && r.perfect ? 'ok' : 'no'}">${r && r.perfect ? '✓' : '✕'}</span>` +
+      `<span class="sc-badge is-${how}">${badge}</span>` +
       `<span>Stage ${i + 1} — ${stage.n} paintings, ${stage.gap}+ years apart</span>` +
       `<span class="sc-detail">${detail}</span>`;
     list.appendChild(li);

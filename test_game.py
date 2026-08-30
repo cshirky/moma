@@ -158,7 +158,7 @@ def main():
         page.wait_for_selector("#screen-done:not([hidden])")
         check("results screen: perfect run", "Perfect run" in page.inner_text("#done-title"),
               page.inner_text("#done-title"))
-        check("results: 5 rows, all ticked", page.locator(".scorecard .sc-badge.ok").count() == 5)
+        check("results: 5 rows, all ticked", page.locator(".scorecard .sc-badge.is-pass").count() == 5)
         # 3+6+10+15+21 pairs across the five stages
         check("results: run total is 55 of 55 calls",
               "55 of 55" in page.inner_text("#done-line"), page.inner_text("#done-line"))
@@ -199,7 +199,27 @@ def main():
               page.locator(".slot.revealed.ok").count() == page.evaluate("state.order.length") - 1)
         mark = page.locator(".mark.no").inner_text()
         check("the flagged painting says where it belongs", "1" in mark and "↑" in mark, mark)
+        check("a one-move stage gets the amber pip, not red",
+              page.locator("#pips li.is-close").count() == 1
+              and page.locator("#pips li.is-fail").count() == 0,
+              page.evaluate("[...document.querySelectorAll('#pips li')].map(l=>l.className).join('|')"))
+        check("the verdict headline is amber, not red",
+              "is-close" in page.get_attribute("#verdict", "class"),
+              page.get_attribute("#verdict", "class"))
         page.screenshot(path="/tmp/chrono_moves.png")
+
+        print("\n== a badly wrong stage stays red ==")
+        page.click("#btn-next"); ready(page)
+        page.evaluate("""()=>{const a=state.works.slice().sort((x,y)=>y.year-x.year).map(w=>w.id);
+                            state.order = a.slice().reverse(); render();}""")
+        page.click("#btn-submit"); page.wait_for_selector(".slot.revealed")
+        check("a reversed board is more than one move away",
+              "moves from correct" in page.inner_text("#verdict"), page.inner_text("#verdict"))
+        check("it gets the red pip", page.locator("#pips li.is-fail").count() == 1,
+              page.evaluate("[...document.querySelectorAll('#pips li')].map(l=>l.className).join('|')"))
+        check("amber and red coexist across stages",
+              page.locator("#pips li.is-close").count() == 1
+              and page.locator("#pips li.is-fail").count() == 1)
 
         print("\n== images actually load from moma.org ==")
         page.wait_for_timeout(2000)
