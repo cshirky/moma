@@ -562,7 +562,7 @@ function showCorrectOrder() {
   verdict.innerHTML = '<span class="v-head">This is the right order.</span>' +
     `<span class="v-sub">${r.perfect
       ? 'Your arrangement already matched it.'
-      : `Yours was ${r.moves === 1 ? 'one move' : r.moves + ' moves'} away.`}</span>`;
+      : `You were ${r.moves === 1 ? 'one move' : r.moves + ' moves'} away from the right order.`}</span>`;
   el('btn-show-order').hidden = true;
 }
 
@@ -584,9 +584,9 @@ function showResults() {
     passed === 0 ? 'That was a hard one.' :
     `${passed} of ${STAGES.length} stages solved.`;
   el('done-line').innerHTML = (moves === 0
-    ? 'A clean sweep — every painting in the right order.'
-    : `<strong>${moves === 1 ? 'One move' : moves + ' moves'}</strong> from a clean sweep.`) +
-    ' Each stage drew a fresh set of paintings on view at MoMA — play again for a different run.';
+    ? 'Perfect — every painting in the right order.'
+    : `<strong>${moves === 1 ? 'One move' : moves + ' moves'}</strong> from placing every painting correctly.`) +
+    ' Each stage draws a fresh set of paintings from MoMA — play again for a different run.';
 
   const score = MAX_SCORE - moves;
   el('score-num').textContent = String(score);

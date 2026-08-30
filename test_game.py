@@ -163,8 +163,11 @@ def main():
               page.inner_text("#done-title"))
         check("results: 5 rows, all ticked", page.locator(".scorecard .sc-badge.is-pass").count() == 5)
         # 3+6+10+15+21 pairs across the five stages
-        check("results: a perfect run reads as a clean sweep",
-              "clean sweep" in page.inner_text("#done-line"), page.inner_text("#done-line"))
+        # Asserted on meaning rather than exact phrasing, which gets reworded:
+        # a flawless run must not report any distance from correct.
+        check("results: a perfect run reports no moves outstanding",
+              "move" not in page.inner_text("#done-line").lower(),
+              page.inner_text("#done-line"))
         check("no pair-counting language anywhere on the results page",
               "call" not in page.inner_text("#screen-done").lower(),
               page.inner_text("#screen-done")[:120])
