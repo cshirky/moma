@@ -135,6 +135,8 @@ def main():
                   "Correct" in page.inner_text("#verdict"), page.inner_text("#verdict"))
             check(f"stage {stage+1}: every slot marked right",
                   page.locator(".slot.revealed.ok").count() == n)
+            check(f"stage {stage+1}: a solved stage offers no Show the order button",
+                  page.is_hidden("#btn-show-order"))
             check(f"stage {stage+1}: solved verdict avoids pair-counting language",
                   "Every painting in its place" in page.inner_text("#verdict")
                   and "call" not in page.inner_text("#verdict").lower(),
@@ -280,7 +282,36 @@ def main():
         check("the verdict headline is amber, not red",
               "is-close" in page.get_attribute("#verdict", "class"),
               page.get_attribute("#verdict", "class"))
+        check("it is ringed on the top half, the way it has to travel",
+              page.locator(".slot.revealed.no.needs-up").count() == 1
+              and page.locator(".slot.revealed.no.needs-down").count() == 0)
+        check("the half-ring is actually drawn, not just declared",
+              page.evaluate("""()=>{const s=document.querySelector('.slot.revealed.no');
+                    const a=getComputedStyle(s,'::after');
+                    return a.content !== 'none' && a.clipPath.startsWith('inset');}"""),
+              page.evaluate("()=>getComputedStyle(document.querySelector('.slot.revealed.no'),'::after').clipPath"))
+        check("the verdict explains the ring instead of asking for a move",
+              "red edge" in page.inner_text("#verdict")
+              and "Move the marked" not in page.inner_text("#verdict"),
+              page.inner_text("#verdict"))
         page.screenshot(path="/tmp/chrono_moves.png")
+
+        print("\n== Show the order, after a stage has been scored ==")
+        check("the button is offered once a stage comes out wrong",
+              page.is_visible("#btn-show-order"))
+        scored = page.evaluate("state.results[state.stageIndex].moves")
+        page.click("#btn-show-order")
+        page.wait_for_selector(".slot.revealed.shown")
+        check("the column re-sorts into the true order", current(page) == answer(page))
+        check("the red half-rings are cleared",
+              page.locator(".slot.revealed.no").count() == 0
+              and page.locator(".slot.needs-up, .slot.needs-down").count() == 0)
+        check("the per-card marks are removed", page.locator(".mark").count() == 0)
+        check("looking does not change the score already recorded",
+              page.evaluate("state.results[state.stageIndex].moves") == scored
+              and page.evaluate("state.results[state.stageIndex].shown") is False)
+        check("the button withdraws after use", page.is_hidden("#btn-show-order"))
+        page.screenshot(path="/tmp/chrono_showorder.png")
 
         print("\n== see the right order ==")
         page.click("#btn-next"); ready(page)
@@ -309,6 +340,8 @@ def main():
               and page.evaluate("state.results[state.stageIndex].shown") is True)
         check("submit and reveal are both withdrawn afterwards",
               page.is_hidden("#btn-submit") and page.is_hidden("#btn-reveal"))
+        check("no Show the order button after giving up — already shown",
+              page.is_hidden("#btn-show-order"))
         check("being shown the answer isn't styled as a wrong answer",
               "is-shown" in page.get_attribute("#verdict", "class"),
               page.get_attribute("#verdict", "class"))

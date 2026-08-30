@@ -170,6 +170,7 @@ a { color: var(--accent); }
   --slot-h: clamp(104px, calc((100vh - 320px) / var(--n)), 208px);
   height: var(--slot-h);
   width: calc(var(--slot-h) * 1.55 + 22px);
+  position: relative;
   transition: width 0.28s ease, border-color 0.12s;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -257,7 +258,22 @@ body.is-dragging, body.is-dragging .card { cursor: grabbing; }
 
 .slot.revealed { border-style: solid; }
 .slot.revealed.ok { border-color: var(--right); }
-.slot.revealed.no { border-color: var(--wrong); }
+.slot.revealed.no { border-color: var(--border); }
+
+/* Half a red ring, on the side the painting has to travel towards: across the
+   top if it belongs higher up the column, across the bottom if lower. Drawn as
+   a clipped overlay rather than with border-top/bottom, because CSS borders
+   are per-side and can't render half of the left and right edges. */
+.slot.revealed.no::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 2px solid var(--wrong);
+  border-radius: calc(var(--radius) + 1px);
+  pointer-events: none;
+}
+.slot.revealed.no.needs-up::after { clip-path: inset(0 0 50% 0); }
+.slot.revealed.no.needs-down::after { clip-path: inset(50% 0 0 0); }
 /* The answer was asked for rather than earned, so it gets a neutral frame
    instead of a verdict colour. */
 .slot.revealed.shown { border-color: var(--text-dim); }

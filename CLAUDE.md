@@ -159,11 +159,23 @@ a server, which this project does not have.
 `finishStage(showAnswer)` is the single exit, used by both buttons:
 
 - **Submit** scores the arrangement and marks each painting — a tick if it's
-  already in the right relative order, or the position it belongs in.
-- **See the right order** re-sorts the column into the true sequence and drops
-  the per-card marks, which would be meaningless with every painting sitting
-  where it belongs. Slots get a neutral frame rather than a verdict colour,
-  and the headline isn't red — being shown the answer is not a wrong answer.
+  already in the right relative order, or the position it belongs in. A
+  misplaced painting is also ringed in red across **half** its frame, on the
+  side it has to travel towards: top half means it belongs higher up the
+  column, bottom half means lower down. That half-ring is a clipped `::after`
+  overlay, not `border-top`/`border-bottom`, because CSS borders are per-side
+  and can't render half of the left and right edges.
+- **See the right order** (during play) and **Show the order** (offered after
+  a stage is scored wrong) both call `showCorrectOrder()`: the column re-sorts
+  into the true sequence, the marks and half-rings come off, slots get a
+  neutral frame, and the headline isn't red — being shown the answer is not a
+  wrong answer. `showCorrectOrder()` only ever changes what is displayed; the
+  score is already recorded before it runs, so looking after submitting is
+  free while giving up beforehand still costs the attempt.
+
+Nothing on a finished stage may tell the player to do something they can't:
+the board is locked, so the copy explains the ring and offers the answer
+rather than saying "move the marked paintings".
 
 Either way **the score comes from the arrangement the player actually built**,
 captured before the column is re-sorted, so asking for the answer costs

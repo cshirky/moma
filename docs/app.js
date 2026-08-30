@@ -391,6 +391,7 @@ function startStage(index) {
   el('btn-next').hidden = true;
   el('btn-shuffle').hidden = false;
   el('btn-reveal').hidden = false;
+  el('btn-show-order').hidden = true;
 
   render();
 }
@@ -462,67 +463,63 @@ function finishStage(showAnswer) {
   if (state.locked || state.pendingImages > 0) return;
   state.locked = true;
 
-  const byId = new Map(state.works.map((w) => [w.id, w]));
   const answer = correctOrder(state.works);
   const keep = keepSet(state.order, answer);
   const moves = state.order.length - keep.size;
   const pairs = pairScore(state.order, answer);
+  const perfect = moves === 0;
 
-  if (showAnswer) {
-    state.order = answer.slice();
-    render();
-  }
+  state.results[state.stageIndex] = {
+    perfect, moves, n: state.order.length, shown: showAnswer,
+    pairsRight: pairs.right, pairsTotal: pairs.total
+  };
 
-  state.order.forEach((id, i) => {
-    const work = byId.get(id);
-    const stays = keep.has(i);
-    if (!showAnswer) {
-      state.slotEls[i].classList.add('revealed', stays ? 'ok' : 'no');
-      const card0 = state.cardEls.get(id);
-      const mark = document.createElement('span');
-      const target = answer.indexOf(id) + 1;
-      mark.className = `mark ${stays ? 'ok' : 'no'}`;
-      // A painting that has to move says where it belongs, so the reveal is
-      // a correction rather than just a verdict.
-      mark.textContent = stays ? '✓' : `${target < i + 1 ? '↑' : '↓'} ${target}`;
-      mark.title = stays ? 'In the right order' : `Belongs in position ${target}`;
-      card0.appendChild(mark);
-    } else {
-      state.slotEls[i].classList.add('revealed', 'shown');
-    }
-    const card = state.cardEls.get(id);
-
-    card.querySelector('.card-info').innerHTML =
+  // Labels are a property of the painting, not of where it was put, so they
+  // go on before anything is re-sorted.
+  state.works.forEach((work) => {
+    state.cardEls.get(work.id).querySelector('.card-info').innerHTML =
       `<span class="r-year">${work.year}</span>` +
       `<span class="r-title">${escapeHtml(work.title)}</span><br>` +
       `<span class="r-artist">${escapeHtml(work.artist)}</span>` +
       (work.gallery ? `<span class="r-where">${escapeHtml(work.gallery)}</span>` : '');
   });
 
-  const perfect = moves === 0;
-  state.results[state.stageIndex] = {
-    perfect, moves, n: state.order.length, shown: showAnswer,
-    pairsRight: pairs.right, pairsTotal: pairs.total
-  };
+  if (showAnswer) {
+    showCorrectOrder();
+  } else {
+    state.order.forEach((id, i) => {
+      const stays = keep.has(i);
+      const target = answer.indexOf(id) + 1;
+      const up = target < i + 1;
+      // A misplaced painting is ringed on the side it has to travel towards —
+      // red across the top means it belongs higher up the column.
+      state.slotEls[i].classList.add('revealed',
+        stays ? 'ok' : 'no', ...(stays ? [] : [up ? 'needs-up' : 'needs-down']));
 
-  const how = outcome(state.results[state.stageIndex]);
-  const verdict = el('verdict');
-  // Asking to be shown isn't a wrong answer, so it doesn't get the red
-  // headline — the pip below still records how the attempt actually went.
-  verdict.className = `verdict is-${showAnswer ? 'shown' : how}`;
-  verdict.innerHTML = showAnswer
-    ? '<span class="v-head">This is the right order.</span>' +
-      `<span class="v-sub">${perfect
-        ? 'Your arrangement already matched it.'
-        : `Yours was ${moves === 1 ? 'one move' : moves + ' moves'} away.`}</span>`
-    : perfect
-    ? '<span class="v-head">Correct — that’s the right order.</span>' +
-      '<span class="v-sub">Every painting in its place.</span>'
-    : `<span class="v-head">${moves === 1 ? 'One move' : moves + ' moves'} from correct.</span>` +
-      `<span class="v-sub">Move the marked painting${moves === 1 ? '' : 's'}.</span>`;
+      const mark = document.createElement('span');
+      mark.className = `mark ${stays ? 'ok' : 'no'}`;
+      mark.textContent = stays ? '✓' : `${up ? '↑' : '↓'} ${target}`;
+      mark.title = stays ? 'In the right order' : `Belongs in position ${target}`;
+      state.cardEls.get(id).appendChild(mark);
+    });
+
+    const how = outcome(state.results[state.stageIndex]);
+    const verdict = el('verdict');
+    verdict.className = `verdict is-${how}`;
+    verdict.innerHTML = perfect
+      ? '<span class="v-head">Correct — that’s the right order.</span>' +
+        '<span class="v-sub">Every painting in its place.</span>'
+      : `<span class="v-head">${moves === 1 ? 'One move' : moves + ' moves'} from correct.</span>` +
+        '<span class="v-sub">A red edge along the top means that painting belongs ' +
+        'higher up; along the bottom, lower down.</span>';
+    // The stage is already scored and the board is locked, so the only useful
+    // thing left to offer is the answer itself.
+    el('btn-show-order').hidden = perfect;
+  }
+
   el('instruction').textContent = 'Click any painting to see it larger';
-
-  el('pips').children[state.stageIndex].className = 'is-' + how;
+  el('pips').children[state.stageIndex].className =
+    'is-' + outcome(state.results[state.stageIndex]);
 
   const upcoming = STAGES[state.stageIndex + 1];
   if (upcoming) {
@@ -537,6 +534,36 @@ function finishStage(showAnswer) {
   next.hidden = false;
   next.textContent = state.stageIndex === STAGES.length - 1 ? 'See results' : 'Next stage';
   next.focus();
+}
+
+/* Re-sort the column into the true sequence and strip the per-card marks,
+ * which mean nothing once every painting sits where it belongs. Reached two
+ * ways: giving up during play, or asking after a stage has been scored. In
+ * both cases the score is already recorded, so this only ever changes what is
+ * displayed. */
+function showCorrectOrder() {
+  const r = state.results[state.stageIndex];
+  state.order = correctOrder(state.works);
+  render();
+
+  state.slotEls.forEach((slot) => {
+    slot.classList.remove('ok', 'no', 'needs-up', 'needs-down');
+    slot.classList.add('revealed', 'shown');
+  });
+  state.cardEls.forEach((card) => {
+    const mark = card.querySelector('.mark');
+    if (mark) mark.remove();
+  });
+
+  const verdict = el('verdict');
+  // Being shown the answer isn't a wrong answer, so it loses the red headline;
+  // the pip still records how the attempt actually went.
+  verdict.className = 'verdict is-shown';
+  verdict.innerHTML = '<span class="v-head">This is the right order.</span>' +
+    `<span class="v-sub">${r.perfect
+      ? 'Your arrangement already matched it.'
+      : `Yours was ${r.moves === 1 ? 'one move' : r.moves + ' moves'} away.`}</span>`;
+  el('btn-show-order').hidden = true;
 }
 
 function escapeHtml(s) {
@@ -724,6 +751,7 @@ function init() {
   el('btn-start').addEventListener('click', newRun);
   el('btn-again').addEventListener('click', newRun);
   el('btn-submit').addEventListener('click', () => finishStage(false));
+  el('btn-show-order').addEventListener('click', showCorrectOrder);
   el('btn-reveal').addEventListener('click', () => finishStage(true));
   el('btn-shuffle').addEventListener('click', () => startStage(state.stageIndex));
   el('btn-next').addEventListener('click', () => {
