@@ -146,12 +146,27 @@ The results screen scores the run out of **20** — `MAX_SCORE`, derived from
 `STAGES` as the sum of `n-1`, because the worst a stage can go is getting it
 exactly backwards. Score is `20 - total moves`, banded in `BANDS`.
 
-The top three bands carry a role title (Museum Director / Curator / Docent).
-The bands are calibrated against measured random play, which averages **8.8
-of 20** (median 9 over 200,000 simulated runs): random runs land in "Nearly
-Random" 66% of the time, "OK" 14%, "Worse than Random" 20%. Keep that
-property if you retune `BANDS` — an earlier set labelled ordinary random
-play "Worse than Random" two times in three.
+| Score | Band |
+|-------|------|
+| 20 | Perfect |
+| 19–18 | Excellent |
+| 17–16 | Very Good |
+| 15–14 | Good |
+| 13–12 | OK |
+| 11–9 | Better than Random |
+| 8 and below | Worse than Random |
+
+**18 is a real threshold, not a round number.** Scoring 18 or more is only
+reachable with at least three stages solved outright, because three imperfect
+stages cost at least three moves between them. `test_game.py` proves this by
+walking every possible move-split rather than trusting the argument.
+
+**The bottom two bands are miscalibrated, knowingly.** Measured random play
+averages **8.8 of 20**, median 9 over 200,000 simulated runs, so the "Better
+than Random" floor of 9 sits on the random median: 57% of random runs clear
+it and get told they beat chance. Raising that floor to 12 would make the
+label true — only 4.4% of random runs reach 12. Left at 9 as specified; the
+number is a one-line change in `BANDS`.
 
 **Pairwise counts are computed but never shown.** `pairScore()` still runs
 and its numbers are stored on each result, but n-squared pair maths doesn't

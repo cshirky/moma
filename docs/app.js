@@ -33,15 +33,24 @@ const STAGES = [
  * out of step with what's achievable. */
 const MAX_SCORE = STAGES.reduce((t, s) => t + s.n - 1, 0);
 
-/* Bands, highest first. These are calibrated against measured random play,
- * which averages 8.8 of 20 and lands squarely in "Nearly Random". */
+/* Bands, highest first.
+ *
+ * 18 is a meaningful cut: scoring 18 or more is only reachable with at least
+ * three stages solved outright, since three imperfect stages cost at least
+ * three moves between them. Verified exhaustively over every move-split.
+ *
+ * Caution on the bottom two: measured random play averages 8.8 of 20 (median
+ * 9), so the "Better than Random" floor of 9 sits right on the random median
+ * and 57% of random runs clear it. Raising that floor to 12 would make the
+ * label true — only 4.4% of random runs reach 12. */
 const BANDS = [
-  { min: 20, label: 'Perfect',           title: 'Museum Director' },
-  { min: 17, label: 'Very Good',         title: 'Curator' },
-  { min: 14, label: 'Good',              title: 'Docent' },
-  { min: 11, label: 'OK',                title: '' },
-  { min: 8,  label: 'Nearly Random',     title: '' },
-  { min: 0,  label: 'Worse than Random', title: '' }
+  { min: 20, label: 'Perfect' },
+  { min: 18, label: 'Excellent' },
+  { min: 16, label: 'Very Good' },
+  { min: 14, label: 'Good' },
+  { min: 12, label: 'OK' },
+  { min: 9,  label: 'Better than Random' },
+  { min: 0,  label: 'Worse than Random' }
 ];
 
 const el = (id) => document.getElementById(id);
@@ -586,10 +595,10 @@ function showResults() {
   el('score-of').textContent = ` of ${MAX_SCORE}`;
   const band = BANDS.find((b) => score >= b.min);
   el('score-band').textContent = band.label;
-  el('score-title').textContent = band.title;
-  el('score-title').hidden = !band.title;
+  // Colour follows the band boundaries: green for Perfect and Excellent,
+  // amber down to OK, red once the label starts mentioning randomness.
   el('score-band').className = 'score-band ' +
-    (score === MAX_SCORE ? 'is-pass' : score >= 14 ? 'is-close' : 'is-fail');
+    (score >= 18 ? 'is-pass' : score >= 12 ? 'is-close' : 'is-fail');
 
   buildVisitList();
 

@@ -181,20 +181,26 @@ def main():
         check("and is labelled Perfect",
               page.inner_text("#score-band").strip().lower() == "perfect",
               page.inner_text("#score-band"))
-        for sc, want, title in [(20,"Perfect","Museum Director"),
-                                (19,"Very Good","Curator"), (17,"Very Good","Curator"),
-                                (16,"Good","Docent"), (14,"Good","Docent"),
-                                (13,"OK",""), (11,"OK",""),
-                                (10,"Nearly Random",""), (8,"Nearly Random",""),
-                                (7,"Worse than Random",""), (0,"Worse than Random","")]:
-            got = page.evaluate("(s)=>{const b=BANDS.find(b=>s>=b.min);return [b.label,b.title];}", sc)
-            check(f"score {sc} -> {want}{' / ' + title if title else ''}",
-                  got[0] == want and got[1] == title, str(got))
-        check("the top three bands carry a role title",
-              page.inner_text("#score-title").strip() == "Museum Director",
-              page.inner_text("#score-title"))
-        check("random play (about 9) is not called worse than random",
-              page.evaluate("()=>BANDS.find(b=>9>=b.min).label") == "Nearly Random")
+        for sc, want in [(20,"Perfect"), (19,"Excellent"), (18,"Excellent"),
+                         (17,"Very Good"), (16,"Very Good"), (15,"Good"), (14,"Good"),
+                         (13,"OK"), (12,"OK"), (11,"Better than Random"),
+                         (9,"Better than Random"), (8,"Worse than Random"),
+                         (0,"Worse than Random")]:
+            got = page.evaluate("(s)=>BANDS.find(b=>s>=b.min).label", sc)
+            check(f"score {sc} -> {want}", got == want, got)
+        check("no role titles remain", page.locator("#score-title").count() == 0
+              and page.evaluate("()=>BANDS.every(b=>b.title===undefined)"))
+        # Excellent is meant to mean "three or more stages solved outright".
+        # Three imperfect stages cost at least three moves, so 18+ can't be
+        # reached with fewer than three perfect stages.
+        check("a score of 18 is unreachable with fewer than 3 perfect stages",
+              page.evaluate("""()=>{
+                const ns=STAGES.map(s=>s.n); let bad=0;
+                const walk=(i,moves,perfect)=>{
+                  if(i===ns.length){ if(20-moves>=18 && perfect<3) bad++; return; }
+                  for(let m=0;m<ns[i];m++) walk(i+1,moves+m,perfect+(m===0?1:0));
+                };
+                walk(0,0,0); return bad;}""") == 0)
         check("max score is derived from the ladder, not hard-coded",
               page.evaluate("MAX_SCORE") == 20 and
               page.evaluate("STAGES.reduce((t,s)=>t+s.n-1,0)") == 20)

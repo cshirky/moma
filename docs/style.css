@@ -474,12 +474,6 @@ body.is-dragging, body.is-dragging .card { cursor: grabbing; }
   text-transform: uppercase;
   font-weight: 700;
 }
-.score-title {
-  margin: 2px 0 0;
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--accent);
-}
 .score-band.is-pass { color: var(--right); }
 .score-band.is-close { color: var(--accent); }
 .score-band.is-fail { color: var(--wrong); }
