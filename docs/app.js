@@ -20,11 +20,11 @@
  * re-run test_game.py after changing them, since a small pool can make an
  * aggressive row unsatisfiable. */
 const STAGES = [
-  { n: 3, gap: 20 },
-  { n: 4, gap: 15 },
-  { n: 5, gap: 10 },
-  { n: 6, gap: 5 },
-  { n: 7, gap: 2 }
+  { n: 3, gap: 25 },
+  { n: 4, gap: 20 },
+  { n: 5, gap: 15 },
+  { n: 6, gap: 10 },
+  { n: 7, gap: 5 }
 ];
 
 /* The worst a stage can go is n-1 moves (getting the order exactly backwards),
@@ -389,6 +389,7 @@ function startStage(index) {
   el('btn-submit').hidden = false;
   el('btn-next').hidden = true;
   el('btn-shuffle').hidden = false;
+  el('btn-reveal').hidden = false;
 
   render();
 }
@@ -451,7 +452,12 @@ function pairScore(order, answer) {
 
 /* -------------------------------------------------------------- submitting */
 
-function submit() {
+/* Both Submit and "See the right order" end the stage the same way. The only
+ * difference is that giving up re-sorts the column into the true sequence and
+ * drops the per-card marks, which would be meaningless once every painting is
+ * sitting where it belongs. Either way the score comes from the arrangement
+ * the player actually built, so asking for the answer costs what it should. */
+function finishStage(showAnswer) {
   if (state.locked || state.pendingImages > 0) return;
   state.locked = true;
 
@@ -461,20 +467,29 @@ function submit() {
   const moves = state.order.length - keep.size;
   const pairs = pairScore(state.order, answer);
 
+  if (showAnswer) {
+    state.order = answer.slice();
+    render();
+  }
+
   state.order.forEach((id, i) => {
     const work = byId.get(id);
     const stays = keep.has(i);
-    state.slotEls[i].classList.add('revealed', stays ? 'ok' : 'no');
-
+    if (!showAnswer) {
+      state.slotEls[i].classList.add('revealed', stays ? 'ok' : 'no');
+      const card0 = state.cardEls.get(id);
+      const mark = document.createElement('span');
+      const target = answer.indexOf(id) + 1;
+      mark.className = `mark ${stays ? 'ok' : 'no'}`;
+      // A painting that has to move says where it belongs, so the reveal is
+      // a correction rather than just a verdict.
+      mark.textContent = stays ? '✓' : `${target < i + 1 ? '↑' : '↓'} ${target}`;
+      mark.title = stays ? 'In the right order' : `Belongs in position ${target}`;
+      card0.appendChild(mark);
+    } else {
+      state.slotEls[i].classList.add('revealed', 'shown');
+    }
     const card = state.cardEls.get(id);
-    const mark = document.createElement('span');
-    const target = answer.indexOf(id) + 1;
-    mark.className = `mark ${stays ? 'ok' : 'no'}`;
-    // A painting that has to move says where it belongs, so the reveal is
-    // a correction rather than just a verdict.
-    mark.textContent = stays ? '✓' : `${target < i + 1 ? '↑' : '↓'} ${target}`;
-    mark.title = stays ? 'In the right order' : `Belongs in position ${target}`;
-    card.appendChild(mark);
 
     card.querySelector('.card-info').innerHTML =
       `<span class="r-year">${work.year}</span>` +
@@ -485,14 +500,22 @@ function submit() {
 
   const perfect = moves === 0;
   state.results[state.stageIndex] = {
-    perfect, moves, n: state.order.length,
+    perfect, moves, n: state.order.length, shown: showAnswer,
     pairsRight: pairs.right, pairsTotal: pairs.total
   };
 
   const how = outcome(state.results[state.stageIndex]);
   const verdict = el('verdict');
-  verdict.className = `verdict is-${how}`;
-  verdict.innerHTML = perfect
+  // Asking to be shown isn't a wrong answer, so it doesn't get the red
+  // headline — the pip below still records how the attempt actually went.
+  verdict.className = `verdict is-${showAnswer ? 'shown' : how}`;
+  verdict.innerHTML = showAnswer
+    ? '<span class="v-head">This is the right order.</span>' +
+      `<span class="v-sub">${perfect
+        ? 'Your arrangement already matched it.'
+        : `Yours was ${moves === 1 ? 'one move' : moves + ' moves'} away — ` +
+          `${pairs.right} of ${pairs.total} before-and-after calls right.`}</span>`
+    : perfect
     ? '<span class="v-head">Correct — that’s the right order.</span>' +
       `<span class="v-sub">All ${pairs.total} before-and-after calls right.</span>`
     : `<span class="v-head">${moves === 1 ? 'One move' : moves + ' moves'} from correct.</span>` +
@@ -510,6 +533,7 @@ function submit() {
 
   el('btn-submit').hidden = true;
   el('btn-shuffle').hidden = true;
+  el('btn-reveal').hidden = true;
   const next = el('btn-next');
   next.hidden = false;
   next.textContent = state.stageIndex === STAGES.length - 1 ? 'See results' : 'Next stage';
@@ -559,8 +583,9 @@ function showResults() {
     const li = document.createElement('li');
     const how = outcome(r);
     const detail = !r ? '—'
-      : r.perfect ? `solved · ${r.pairsRight}/${r.pairsTotal} calls`
-      : `${r.moves === 1 ? '1 move' : r.moves + ' moves'} away · ${r.pairsRight}/${r.pairsTotal} calls`;
+      : (r.perfect ? 'solved' : `${r.moves === 1 ? '1 move' : r.moves + ' moves'} away`) +
+        (r.shown ? ' · answer shown' : '') +
+        ` · ${r.pairsRight}/${r.pairsTotal} calls`;
     // The badge carries the move count, so a near miss reads as a near miss.
     const badge = !r ? '—' : r.perfect ? '✓' : String(r.moves);
     li.innerHTML =
@@ -703,7 +728,8 @@ function init() {
 
   el('btn-start').addEventListener('click', newRun);
   el('btn-again').addEventListener('click', newRun);
-  el('btn-submit').addEventListener('click', submit);
+  el('btn-submit').addEventListener('click', () => finishStage(false));
+  el('btn-reveal').addEventListener('click', () => finishStage(true));
   el('btn-shuffle').addEventListener('click', () => startStage(state.stageIndex));
   el('btn-next').addEventListener('click', () => {
     if (state.stageIndex === STAGES.length - 1) showResults();

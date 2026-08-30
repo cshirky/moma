@@ -72,11 +72,11 @@ years apart is usually legible from style alone, 2 years is not.
 
 | Stage | Paintings | Min gap |
 |-------|-----------|---------|
-| 1 | 3 | 20 years |
-| 2 | 4 | 15 years |
-| 3 | 5 | 10 years |
-| 4 | 6 | 5 years  |
-| 5 | 7 | 2 years  |
+| 1 | 3 | 25 years |
+| 2 | 4 | 20 years |
+| 3 | 5 | 15 years |
+| 4 | 6 | 10 years |
+| 5 | 7 | 5 years  |
 
 Every row was simulated against the real pool before being fixed, and
 `test_game.py` re-checks 1,000 live draws against these rules. If you change
@@ -146,6 +146,22 @@ the collection chronologically from the top down.
 map" is honoured as an on-screen route plus a print button (`@media print`
 hides everything but the route). Adding real email delivery would mean adding
 a server, which this project does not have.
+
+## Ending a stage
+
+`finishStage(showAnswer)` is the single exit, used by both buttons:
+
+- **Submit** scores the arrangement and marks each painting — a tick if it's
+  already in the right relative order, or the position it belongs in.
+- **See the right order** re-sorts the column into the true sequence and drops
+  the per-card marks, which would be meaningless with every painting sitting
+  where it belongs. Slots get a neutral frame rather than a verdict colour,
+  and the headline isn't red — being shown the answer is not a wrong answer.
+
+Either way **the score comes from the arrangement the player actually built**,
+captured before the column is re-sorted, so asking for the answer costs
+exactly what it should. The result records `shown: true` and the results
+scorecard says "answer shown".
 
 ## Interaction
 

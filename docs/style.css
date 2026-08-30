@@ -258,6 +258,9 @@ body.is-dragging, body.is-dragging .card { cursor: grabbing; }
 .slot.revealed { border-style: solid; }
 .slot.revealed.ok { border-color: var(--right); }
 .slot.revealed.no { border-color: var(--wrong); }
+/* The answer was asked for rather than earned, so it gets a neutral frame
+   instead of a verdict colour. */
+.slot.revealed.shown { border-color: var(--text-dim); }
 
 .slot.revealed .card-info {
   display: block;
@@ -369,12 +372,14 @@ body.is-dragging, body.is-dragging .card { cursor: grabbing; }
 /* ---------- actions ---------- */
 
 .actions { margin-top: 18px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.minor-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .verdict { margin: 0; min-height: 1.4em; display: flex; flex-direction: column; gap: 3px; }
 .v-head { font-size: 0.98rem; font-weight: 600; }
 .v-sub { font-size: 0.83rem; color: var(--text-dim); }
 .verdict.is-pass .v-head { color: var(--right); }
 .verdict.is-close .v-head { color: var(--accent); }
 .verdict.is-fail .v-head { color: var(--wrong); }
+.verdict.is-shown .v-head { color: var(--text); }
 
 /* ---------- scorecard ---------- */
 

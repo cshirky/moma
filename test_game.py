@@ -58,8 +58,8 @@ def main():
         check("dataset loaded", page.evaluate("PAINTINGS.length") > 200)
         check("every painting has image+year+artist",
               page.evaluate("PAINTINGS.every(w=>w.image&&w.year&&w.artist)"))
-        check("ladder is 20/15/10/5/2 years",
-              page.evaluate("STAGES.map(s=>s.gap).join()") == "20,15,10,5,2",
+        check("ladder is 25/20/15/10/5 years",
+              page.evaluate("STAGES.map(s=>s.gap).join()") == "25,20,15,10,5",
               page.evaluate("STAGES.map(s=>s.gap).join()"))
         check("ladder is 3-7 paintings",
               page.evaluate("STAGES.map(s=>s.n).join()") == "3,4,5,6,7")
@@ -258,6 +258,38 @@ def main():
               page.get_attribute("#verdict", "class"))
         page.screenshot(path="/tmp/chrono_moves.png")
 
+        print("\n== see the right order ==")
+        page.click("#btn-next"); ready(page)
+        want = answer(page)
+        # deliberately scramble, then ask for the answer instead of submitting
+        page.evaluate("()=>{state.order = state.order.slice().reverse(); render();}")
+        before = current(page)
+        check("the reveal button is offered during play", page.is_visible("#btn-reveal"))
+        page.click("#btn-reveal")
+        page.wait_for_selector(".slot.revealed")
+        check("the column is re-sorted into the true order", current(page) == want,
+              f"{before} -> {current(page)}")
+        check("slots are framed neutrally, not as right or wrong",
+              page.locator(".slot.revealed.shown").count() == len(want)
+              and page.locator(".slot.revealed.ok").count() == 0
+              and page.locator(".slot.revealed.no").count() == 0)
+        check("no per-card marks when the answer was given", page.locator(".mark").count() == 0)
+        check("every painting is labelled with its year",
+              page.locator(".card-info .r-year").count() == len(want))
+        vtext = page.inner_text("#verdict")
+        check("it says this is the right order", "This is the right order" in vtext, vtext)
+        check("and still reports how far off the player was",
+              "away" in vtext and "calls right" in vtext, vtext)
+        check("asking for the answer still costs the score",
+              page.evaluate("state.results[state.stageIndex].moves") > 0
+              and page.evaluate("state.results[state.stageIndex].shown") is True)
+        check("submit and reveal are both withdrawn afterwards",
+              page.is_hidden("#btn-submit") and page.is_hidden("#btn-reveal"))
+        check("being shown the answer isn't styled as a wrong answer",
+              "is-shown" in page.get_attribute("#verdict", "class"),
+              page.get_attribute("#verdict", "class"))
+        page.screenshot(path="/tmp/chrono_reveal.png")
+
         print("\n== a badly wrong stage stays red ==")
         page.click("#btn-next"); ready(page)
         page.evaluate("""()=>{const a=state.works.slice().sort((x,y)=>y.year-x.year).map(w=>w.id);
@@ -265,11 +297,16 @@ def main():
         page.click("#btn-submit"); page.wait_for_selector(".slot.revealed")
         check("a reversed board is more than one move away",
               "moves from correct" in page.inner_text("#verdict"), page.inner_text("#verdict"))
-        check("it gets the red pip", page.locator("#pips li.is-fail").count() == 1,
+        # assert on this stage's own pip, since earlier stages in this run have
+        # already painted pips of their own
+        check("it gets the red pip",
+              page.evaluate("()=>document.querySelectorAll('#pips li')[state.stageIndex].className")
+              == "is-fail",
               page.evaluate("[...document.querySelectorAll('#pips li')].map(l=>l.className).join('|')"))
         check("amber and red coexist across stages",
-              page.locator("#pips li.is-close").count() == 1
-              and page.locator("#pips li.is-fail").count() == 1)
+              page.locator("#pips li.is-close").count() >= 1
+              and page.locator("#pips li.is-fail").count() >= 1,
+              page.evaluate("[...document.querySelectorAll('#pips li')].map(l=>l.className).join('|')"))
 
         print("\n== images actually load from moma.org ==")
         page.wait_for_timeout(2000)
