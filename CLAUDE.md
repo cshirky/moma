@@ -181,22 +181,27 @@ a server, which this project does not have.
 
 ## Ending a stage
 
-`finishStage(showAnswer)` is the single exit, used by both buttons:
+**Submit is the only way to end a stage.** `finishStage()` scores the
+arrangement and marks each painting — a tick if it's already in the right
+relative order, or the position it belongs in. A misplaced painting is also
+ringed in red across **half** its frame, on the side it has to travel
+towards: top half means it belongs higher up the column, bottom half means
+lower down. That half-ring is a clipped `::after` overlay, not
+`border-top`/`border-bottom`, because CSS borders are per-side and can't
+render half of the left and right edges.
 
-- **Submit** scores the arrangement and marks each painting — a tick if it's
-  already in the right relative order, or the position it belongs in. A
-  misplaced painting is also ringed in red across **half** its frame, on the
-  side it has to travel towards: top half means it belongs higher up the
-  column, bottom half means lower down. That half-ring is a clipped `::after`
-  overlay, not `border-top`/`border-bottom`, because CSS borders are per-side
-  and can't render half of the left and right edges.
-- **See the right order** (during play) and **Show the order** (offered after
-  a stage is scored wrong) both call `showCorrectOrder()`: the column re-sorts
-  into the true sequence, the marks and half-rings come off, slots get a
-  neutral frame, and the headline isn't red — being shown the answer is not a
-  wrong answer. `showCorrectOrder()` only ever changes what is displayed; the
-  score is already recorded before it runs, so looking after submitting is
-  free while giving up beforehand still costs the attempt.
+Afterwards, a stage that came out wrong offers **Show the order**, which
+calls `showCorrectOrder()`: the column re-sorts into the true sequence, the
+marks and half-rings come off, slots get a neutral frame, and the headline
+isn't red — being shown the answer is not a wrong answer. The stage is
+already scored by then, so this only ever changes what is displayed.
+
+There was once a second button, "See the right order", offered *during* play.
+It was dropped because it did nothing Submit didn't: it scored whatever was
+on the board and then revealed, so it was Submit and Show the order behind a
+different label, a minute apart and nearly identically worded. Don't
+reintroduce a give-up button unless it does something genuinely different —
+forfeiting the stage at maximum moves, say.
 
 Nothing on a finished stage may tell the player to do something they can't:
 the board is locked, so the copy explains the ring and offers the answer

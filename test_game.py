@@ -137,6 +137,8 @@ def main():
                   page.locator(".slot.revealed.ok").count() == n)
             check(f"stage {stage+1}: a solved stage offers no Show the order button",
                   page.is_hidden("#btn-show-order"))
+            check(f"stage {stage+1}: submit is the only way to end a stage",
+                  page.locator("#btn-reveal").count() == 0)
             check(f"stage {stage+1}: solved verdict avoids pair-counting language",
                   "Every painting in its place" in page.inner_text("#verdict")
                   and "call" not in page.inner_text("#verdict").lower(),
@@ -311,44 +313,10 @@ def main():
               and page.locator(".slot.needs-up, .slot.needs-down").count() == 0)
         check("the per-card marks are removed", page.locator(".mark").count() == 0)
         check("looking does not change the score already recorded",
-              page.evaluate("state.results[state.stageIndex].moves") == scored
-              and page.evaluate("state.results[state.stageIndex].shown") is False)
+              page.evaluate("state.results[state.stageIndex].moves") == scored,
+              f"{scored} -> {page.evaluate('state.results[state.stageIndex].moves')}")
         check("the button withdraws after use", page.is_hidden("#btn-show-order"))
         page.screenshot(path="/tmp/chrono_showorder.png")
-
-        print("\n== see the right order ==")
-        page.click("#btn-next"); ready(page)
-        want = answer(page)
-        # deliberately scramble, then ask for the answer instead of submitting
-        page.evaluate("()=>{state.order = state.order.slice().reverse(); render();}")
-        before = current(page)
-        check("the reveal button is offered during play", page.is_visible("#btn-reveal"))
-        page.click("#btn-reveal")
-        page.wait_for_selector(".slot.revealed")
-        check("the column is re-sorted into the true order", current(page) == want,
-              f"{before} -> {current(page)}")
-        check("slots are framed neutrally, not as right or wrong",
-              page.locator(".slot.revealed.shown").count() == len(want)
-              and page.locator(".slot.revealed.ok").count() == 0
-              and page.locator(".slot.revealed.no").count() == 0)
-        check("no per-card marks when the answer was given", page.locator(".mark").count() == 0)
-        check("every painting is labelled with its year",
-              page.locator(".card-info .r-year").count() == len(want))
-        vtext = page.inner_text("#verdict")
-        check("it says this is the right order", "This is the right order" in vtext, vtext)
-        check("and still reports how far off the player was",
-              "away" in vtext and "call" not in vtext.lower(), vtext)
-        check("asking for the answer still costs the score",
-              page.evaluate("state.results[state.stageIndex].moves") > 0
-              and page.evaluate("state.results[state.stageIndex].shown") is True)
-        check("submit and reveal are both withdrawn afterwards",
-              page.is_hidden("#btn-submit") and page.is_hidden("#btn-reveal"))
-        check("no Show the order button after giving up — already shown",
-              page.is_hidden("#btn-show-order"))
-        check("being shown the answer isn't styled as a wrong answer",
-              "is-shown" in page.get_attribute("#verdict", "class"),
-              page.get_attribute("#verdict", "class"))
-        page.screenshot(path="/tmp/chrono_reveal.png")
 
         print("\n== a badly wrong stage stays red ==")
         page.click("#btn-next"); ready(page)

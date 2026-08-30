@@ -390,7 +390,6 @@ function startStage(index) {
   el('btn-submit').hidden = false;
   el('btn-next').hidden = true;
   el('btn-shuffle').hidden = false;
-  el('btn-reveal').hidden = false;
   el('btn-show-order').hidden = true;
 
   render();
@@ -459,7 +458,7 @@ function pairScore(order, answer) {
  * drops the per-card marks, which would be meaningless once every painting is
  * sitting where it belongs. Either way the score comes from the arrangement
  * the player actually built, so asking for the answer costs what it should. */
-function finishStage(showAnswer) {
+function finishStage() {
   if (state.locked || state.pendingImages > 0) return;
   state.locked = true;
 
@@ -470,7 +469,7 @@ function finishStage(showAnswer) {
   const perfect = moves === 0;
 
   state.results[state.stageIndex] = {
-    perfect, moves, n: state.order.length, shown: showAnswer,
+    perfect, moves, n: state.order.length,
     pairsRight: pairs.right, pairsTotal: pairs.total
   };
 
@@ -484,38 +483,34 @@ function finishStage(showAnswer) {
       (work.gallery ? `<span class="r-where">${escapeHtml(work.gallery)}</span>` : '');
   });
 
-  if (showAnswer) {
-    showCorrectOrder();
-  } else {
-    state.order.forEach((id, i) => {
-      const stays = keep.has(i);
-      const target = answer.indexOf(id) + 1;
-      const up = target < i + 1;
-      // A misplaced painting is ringed on the side it has to travel towards —
-      // red across the top means it belongs higher up the column.
-      state.slotEls[i].classList.add('revealed',
-        stays ? 'ok' : 'no', ...(stays ? [] : [up ? 'needs-up' : 'needs-down']));
+  state.order.forEach((id, i) => {
+    const stays = keep.has(i);
+    const target = answer.indexOf(id) + 1;
+    const up = target < i + 1;
+    // A misplaced painting is ringed on the side it has to travel towards —
+    // red across the top means it belongs higher up the column.
+    state.slotEls[i].classList.add('revealed',
+      stays ? 'ok' : 'no', ...(stays ? [] : [up ? 'needs-up' : 'needs-down']));
 
-      const mark = document.createElement('span');
-      mark.className = `mark ${stays ? 'ok' : 'no'}`;
-      mark.textContent = stays ? '✓' : `${up ? '↑' : '↓'} ${target}`;
-      mark.title = stays ? 'In the right order' : `Belongs in position ${target}`;
-      state.cardEls.get(id).appendChild(mark);
-    });
+    const mark = document.createElement('span');
+    mark.className = `mark ${stays ? 'ok' : 'no'}`;
+    mark.textContent = stays ? '✓' : `${up ? '↑' : '↓'} ${target}`;
+    mark.title = stays ? 'In the right order' : `Belongs in position ${target}`;
+    state.cardEls.get(id).appendChild(mark);
+  });
 
-    const how = outcome(state.results[state.stageIndex]);
-    const verdict = el('verdict');
-    verdict.className = `verdict is-${how}`;
-    verdict.innerHTML = perfect
-      ? '<span class="v-head">Correct — that’s the right order.</span>' +
-        '<span class="v-sub">Every painting in its place.</span>'
-      : `<span class="v-head">${moves === 1 ? 'One move' : moves + ' moves'} from correct.</span>` +
-        '<span class="v-sub">A red edge along the top means that painting belongs ' +
-        'higher up; along the bottom, lower down.</span>';
-    // The stage is already scored and the board is locked, so the only useful
-    // thing left to offer is the answer itself.
-    el('btn-show-order').hidden = perfect;
-  }
+  const how = outcome(state.results[state.stageIndex]);
+  const verdict = el('verdict');
+  verdict.className = `verdict is-${how}`;
+  verdict.innerHTML = perfect
+    ? '<span class="v-head">Correct — that’s the right order.</span>' +
+      '<span class="v-sub">Every painting in its place.</span>'
+    : `<span class="v-head">${moves === 1 ? 'One move' : moves + ' moves'} from correct.</span>` +
+      '<span class="v-sub">A red edge along the top means that painting belongs ' +
+      'higher up; along the bottom, lower down.</span>';
+  // The stage is already scored and the board is locked, so the only useful
+  // thing left to offer is the answer itself.
+  el('btn-show-order').hidden = perfect;
 
   el('instruction').textContent = 'Click any painting to see it larger';
   el('pips').children[state.stageIndex].className =
@@ -529,7 +524,6 @@ function finishStage(showAnswer) {
 
   el('btn-submit').hidden = true;
   el('btn-shuffle').hidden = true;
-  el('btn-reveal').hidden = true;
   const next = el('btn-next');
   next.hidden = false;
   next.textContent = state.stageIndex === STAGES.length - 1 ? 'See results' : 'Next stage';
@@ -537,10 +531,9 @@ function finishStage(showAnswer) {
 }
 
 /* Re-sort the column into the true sequence and strip the per-card marks,
- * which mean nothing once every painting sits where it belongs. Reached two
- * ways: giving up during play, or asking after a stage has been scored. In
- * both cases the score is already recorded, so this only ever changes what is
- * displayed. */
+ * which mean nothing once every painting sits where it belongs. Only ever
+ * reached after a stage has been submitted and scored, so it changes what is
+ * displayed and nothing else. */
 function showCorrectOrder() {
   const r = state.results[state.stageIndex];
   state.order = correctOrder(state.works);
@@ -607,8 +600,8 @@ function showResults() {
     const li = document.createElement('li');
     const how = outcome(r);
     const detail = !r ? '—'
-      : (r.perfect ? 'solved' : `${r.moves === 1 ? '1 move' : r.moves + ' moves'} away`) +
-        (r.shown ? ' · answer shown' : '');
+      : r.perfect ? 'solved'
+      : `${r.moves === 1 ? '1 move' : r.moves + ' moves'} away`;
     // The badge carries the move count, so a near miss reads as a near miss.
     const badge = !r ? '—' : r.perfect ? '✓' : String(r.moves);
     li.innerHTML =
@@ -750,9 +743,8 @@ function init() {
 
   el('btn-start').addEventListener('click', newRun);
   el('btn-again').addEventListener('click', newRun);
-  el('btn-submit').addEventListener('click', () => finishStage(false));
+  el('btn-submit').addEventListener('click', finishStage);
   el('btn-show-order').addEventListener('click', showCorrectOrder);
-  el('btn-reveal').addEventListener('click', () => finishStage(true));
   el('btn-shuffle').addEventListener('click', () => startStage(state.stageIndex));
   el('btn-next').addEventListener('click', () => {
     if (state.stageIndex === STAGES.length - 1) showResults();
