@@ -3,29 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Chronology — MoMA Paintings on View</title>
+<title>Chronology Challenge — Put Museum of Modern Art Paintings in the Right Order</title>
 <meta name="description" content="Order MoMA paintings by the year they were made. Five stages, each harder than the last.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <header class="app-header">
-  <h1>Chronology</h1>
-  <p class="subtitle">Put MoMA&rsquo;s paintings in the order they were made</p>
+  <h1>Chronology Challenge</h1>
+  <p class="subtitle">Put The Museum of Modern Art&rsquo;s paintings in the right order</p>
 </header>
 
 <!-- Start screen -->
 <section id="screen-start" class="screen">
   <div class="card-panel">
-    <h2>Five stages. Each one harder.</h2>
-    <p>You&rsquo;ll be shown paintings currently hanging at MoMA, in the wrong
-    order. Drag them so the <strong>most recent is on top</strong> and the
-    <strong>oldest is on the bottom</strong>. Click any painting to see it bigger.</p>
-    <p class="muted">You never need to know the year &mdash; only which painting came
-    before which. As the stages go on you&rsquo;ll get more paintings, and the
-    years between them get closer together.</p>
+    <h2>Five stages, each one harder.</h2>
+    <p>You&rsquo;ll be shown paintings currently on display at MoMA, but displayed in the wrong
+    order. Drag them so the <strong>most recent painting is on top</strong> and the
+    <strong>oldest is on the bottom</strong>. Click any painting to see a larger version.</p>
+    <p class="muted">You will not need to guess the year, just which painting was created
+    before which.</p>
     <ul class="ladder" id="ladder"></ul>
-    <button class="btn btn-primary btn-lg" id="btn-start">Start</button>
+    <button class="btn btn-primary btn-lg" id="btn-start">Begin</button>
     <p class="muted fine" id="pool-note"></p>
   </div>
 </section>
@@ -74,8 +73,8 @@
 
     <section class="visit">
       <h3 id="visit-head"></h3>
-      <p class="muted">If you would like a map to find any of these paintings
-      currently up at MoMA, check the box next to it.</p>
+      <p class="muted">If you&rsquo;d like a custom map of MoMA, showing you where any of
+      these paintings are currently hanging, check the box next to it.</p>
       <ol class="painting-list" id="painting-list"></ol>
       <div class="visit-actions">
         <button class="btn" id="btn-map" disabled>Make my map</button>
@@ -101,8 +100,8 @@
 </div>
 
 <footer class="app-footer">
-  <p>Images and data from <a href="https://github.com/MuseumofModernArt/collection" target="_blank" rel="noopener">The Museum of Modern Art&rsquo;s public collection dataset</a>.
-  Paintings shown are on view at MoMA as of the most recent data refresh.</p>
+  <p>Images and data from <a href="https://github.com/MuseumofModernArt/collection" target="_blank" rel="noopener">The Museum of Modern Art&rsquo;s public collection dataset</a>.</p>
+  <p>Paintings shown are on view at MoMA as of the most recent data refresh.</p>
 </footer>
 
 <script src="data.js"></script>
