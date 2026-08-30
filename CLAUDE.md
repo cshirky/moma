@@ -12,8 +12,33 @@ palette and the "generated data as a `.js` file" pattern come from there.
 
 ## Deploying
 
-`git push` to `main` is the whole deploy step if this is served via GitHub
-Pages from `docs/`. There is no build.
+- **Live:** https://cshirky.github.io/moma/
+- **Repo:** https://github.com/cshirky/moma (public; Pages serves `main` → `/docs`)
+
+`git push` to `main` is the whole deploy step — Pages rebuilds within a
+minute or two. There is no build step of any kind. Run `python3 test_game.py`
+before pushing; it drives the real app in Chromium and is the only thing
+standing between a bad change and the public URL.
+
+For local work, serve `docs/` on any static server
+(`python3 -m http.server 8765` from inside `docs/`) — the game is plain
+files, so a refresh picks up every edit.
+
+Two things about this machine that are invisible until they bite:
+
+- **An invalid `GH_TOKEN` environment variable shadows the working keyring
+  login.** It breaks `gh` ("the token in GH_TOKEN is invalid") *and* `git
+  push`, which fails with "Invalid username or token. Password authentication
+  is not supported" because the gh credential helper reads the same variable.
+  Prefix either with `env -u GH_TOKEN`: `env -u GH_TOKEN git push origin
+  main`.
+- **Commits here are authored `cshirky <cshirky@penguin>`**, matching
+  `museum_flashcards`, to keep a personal email out of public commit history.
+  The repo's local git identity is set to this, so it holds by default —
+  don't override it with `-c user.email`, and don't reintroduce the address
+  when copying commands between projects. History was rewritten once before
+  the first push to remove it; doing that after people have cloned is much
+  worse than getting it right up front.
 
 ## Architecture
 
