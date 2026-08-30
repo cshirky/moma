@@ -459,6 +459,12 @@ body.is-dragging, body.is-dragging .card { cursor: grabbing; }
   text-transform: uppercase;
   font-weight: 700;
 }
+.score-title {
+  margin: 2px 0 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--accent);
+}
 .score-band.is-pass { color: var(--right); }
 .score-band.is-close { color: var(--accent); }
 .score-band.is-fail { color: var(--wrong); }
@@ -470,8 +476,6 @@ body.is-dragging, body.is-dragging .card { cursor: grabbing; }
   list-style: none;
   margin: 14px 0;
   padding: 0 4px 0 0;
-  max-height: 420px;
-  overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg);

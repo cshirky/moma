@@ -135,8 +135,9 @@ def main():
                   "Correct" in page.inner_text("#verdict"), page.inner_text("#verdict"))
             check(f"stage {stage+1}: every slot marked right",
                   page.locator(".slot.revealed.ok").count() == n)
-            check(f"stage {stage+1}: solved verdict reports all calls right",
-                  f"All {n*(n-1)//2} before-and-after calls right" in page.inner_text("#verdict"),
+            check(f"stage {stage+1}: solved verdict avoids pair-counting language",
+                  "Every painting in its place" in page.inner_text("#verdict")
+                  and "call" not in page.inner_text("#verdict").lower(),
                   page.inner_text("#verdict"))
             check(f"stage {stage+1}: reveal shows year+title+artist",
                   page.locator(".card-info .r-year").count() == n
@@ -160,8 +161,11 @@ def main():
               page.inner_text("#done-title"))
         check("results: 5 rows, all ticked", page.locator(".scorecard .sc-badge.is-pass").count() == 5)
         # 3+6+10+15+21 pairs across the five stages
-        check("results: run total is 55 of 55 calls",
-              "55 of 55" in page.inner_text("#done-line"), page.inner_text("#done-line"))
+        check("results: a perfect run reads as a clean sweep",
+              "clean sweep" in page.inner_text("#done-line"), page.inner_text("#done-line"))
+        check("no pair-counting language anywhere on the results page",
+              "call" not in page.inner_text("#screen-done").lower(),
+              page.inner_text("#screen-done")[:120])
 
         print("\n== score out of 20 ==")
         check("a perfect run scores 20 of 20",
@@ -170,11 +174,20 @@ def main():
         check("and is labelled Perfect",
               page.inner_text("#score-band").strip().lower() == "perfect",
               page.inner_text("#score-band"))
-        for sc, want in [(20,"Perfect"),(19,"Very Good"),(17,"Very Good"),(16,"Good"),
-                         (14,"Good"),(13,"Close to Random"),(10,"Close to Random"),
-                         (9,"Worse than Random"),(0,"Worse than Random")]:
-            got = page.evaluate("(s)=>BANDS.find(b=>s>=b.min).label", sc)
-            check(f"score {sc} -> {want}", got == want, got)
+        for sc, want, title in [(20,"Perfect","Museum Director"),
+                                (19,"Very Good","Curator"), (17,"Very Good","Curator"),
+                                (16,"Good","Docent"), (14,"Good","Docent"),
+                                (13,"OK",""), (11,"OK",""),
+                                (10,"Nearly Random",""), (8,"Nearly Random",""),
+                                (7,"Worse than Random",""), (0,"Worse than Random","")]:
+            got = page.evaluate("(s)=>{const b=BANDS.find(b=>s>=b.min);return [b.label,b.title];}", sc)
+            check(f"score {sc} -> {want}{' / ' + title if title else ''}",
+                  got[0] == want and got[1] == title, str(got))
+        check("the top three bands carry a role title",
+              page.inner_text("#score-title").strip() == "Museum Director",
+              page.inner_text("#score-title"))
+        check("random play (about 9) is not called worse than random",
+              page.evaluate("()=>BANDS.find(b=>9>=b.min).label") == "Nearly Random")
         check("max score is derived from the ladder, not hard-coded",
               page.evaluate("MAX_SCORE") == 20 and
               page.evaluate("STAGES.reduce((t,s)=>t+s.n-1,0)") == 20)
@@ -184,12 +197,23 @@ def main():
         check("all 25 paintings are listed", rows.count() == 25, str(rows.count()))
         years = page.evaluate("""()=>[...document.querySelectorAll('#painting-list .pl-year')]
                                     .map(e=>+e.textContent)""")
-        check("listed oldest to newest", years == sorted(years), str(years))
+        check("listed newest to oldest, like the board",
+              years == sorted(years, reverse=True), str(years))
         check("no painting repeats across a run",
               len(set(page.evaluate("()=>[...document.querySelectorAll('#painting-list input')].map(i=>i.dataset.id)"))) == 25)
-        check("the list scrolls rather than running off the page",
+        # All 25 must actually be on screen: an inner scroll box hid 18 of them
+        # and the list read as six paintings.
+        check("no inner scroll box hides paintings",
               page.evaluate("()=>{const l=document.getElementById('painting-list');"
-                            "return l.scrollHeight > l.clientHeight;}"))
+                            "return l.scrollHeight <= l.clientHeight + 2;}"),
+              page.evaluate("()=>{const l=document.getElementById('painting-list');"
+                            "return l.scrollHeight+' vs '+l.clientHeight;}"))
+        check("every one of the 25 rows is rendered at full height",
+              page.evaluate("""()=>[...document.querySelectorAll('#painting-list li')]
+                    .every(li=>li.getBoundingClientRect().height > 20)"""))
+        check("the map instruction uses the agreed wording",
+              "check the box next to it" in page.inner_text(".visit"),
+              page.inner_text(".visit")[:160])
         check("every row has a thumbnail and a checkbox",
               page.locator("#painting-list img").count() == 25
               and page.locator("#painting-list input[type=checkbox]").count() == 25)
@@ -279,7 +303,7 @@ def main():
         vtext = page.inner_text("#verdict")
         check("it says this is the right order", "This is the right order" in vtext, vtext)
         check("and still reports how far off the player was",
-              "away" in vtext and "calls right" in vtext, vtext)
+              "away" in vtext and "call" not in vtext.lower(), vtext)
         check("asking for the answer still costs the score",
               page.evaluate("state.results[state.stageIndex].moves") > 0
               and page.evaluate("state.results[state.stageIndex].shown") is True)

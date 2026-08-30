@@ -33,14 +33,15 @@ const STAGES = [
  * out of step with what's achievable. */
 const MAX_SCORE = STAGES.reduce((t, s) => t + s.n - 1, 0);
 
-/* Bands as specified. Note these sit above measured random play, which
- * averages about 8.8 of 20 — see CLAUDE.md. Retune here. */
+/* Bands, highest first. These are calibrated against measured random play,
+ * which averages 8.8 of 20 and lands squarely in "Nearly Random". */
 const BANDS = [
-  { min: 20, label: 'Perfect' },
-  { min: 17, label: 'Very Good' },
-  { min: 14, label: 'Good' },
-  { min: 10, label: 'Close to Random' },
-  { min: 0,  label: 'Worse than Random' }
+  { min: 20, label: 'Perfect',           title: 'Museum Director' },
+  { min: 17, label: 'Very Good',         title: 'Curator' },
+  { min: 14, label: 'Good',              title: 'Docent' },
+  { min: 11, label: 'OK',                title: '' },
+  { min: 8,  label: 'Nearly Random',     title: '' },
+  { min: 0,  label: 'Worse than Random', title: '' }
 ];
 
 const el = (id) => document.getElementById(id);
@@ -513,14 +514,12 @@ function finishStage(showAnswer) {
     ? '<span class="v-head">This is the right order.</span>' +
       `<span class="v-sub">${perfect
         ? 'Your arrangement already matched it.'
-        : `Yours was ${moves === 1 ? 'one move' : moves + ' moves'} away — ` +
-          `${pairs.right} of ${pairs.total} before-and-after calls right.`}</span>`
+        : `Yours was ${moves === 1 ? 'one move' : moves + ' moves'} away.`}</span>`
     : perfect
     ? '<span class="v-head">Correct — that’s the right order.</span>' +
-      `<span class="v-sub">All ${pairs.total} before-and-after calls right.</span>`
+      '<span class="v-sub">Every painting in its place.</span>'
     : `<span class="v-head">${moves === 1 ? 'One move' : moves + ' moves'} from correct.</span>` +
-      `<span class="v-sub">${pairs.right} of ${pairs.total} before-and-after calls right — ` +
-      `move the marked painting${moves === 1 ? '' : 's'}.</span>`;
+      `<span class="v-sub">Move the marked painting${moves === 1 ? '' : 's'}.</span>`;
   el('instruction').textContent = 'Click any painting to see it larger';
 
   el('pips').children[state.stageIndex].className = 'is-' + how;
@@ -551,26 +550,24 @@ function showResults() {
   show('screen-done');
   const done = state.results.filter(Boolean);
   const passed = done.filter((r) => r.perfect).length;
-  const right = done.reduce((t, r) => t + r.pairsRight, 0);
-  const total = done.reduce((t, r) => t + r.pairsTotal, 0);
   const moves = done.reduce((t, r) => t + r.moves, 0);
 
   el('done-title').textContent =
     passed === STAGES.length ? 'Perfect run.' :
     passed === 0 ? 'That was a hard one.' :
     `${passed} of ${STAGES.length} stages solved.`;
-  // The run score is pairwise: across five stages there are 55 before-and-
-  // after judgements, and that count scales sensibly as the stages grow.
-  el('done-line').innerHTML =
-    `<strong>${right} of ${total}</strong> before-and-after calls right` +
-    (moves ? `, and ${moves === 1 ? 'one move' : moves + ' moves'} from a clean sweep` : '') +
-    '. Each stage drew a fresh set of paintings on view at MoMA — play again for a different run.';
+  el('done-line').innerHTML = (moves === 0
+    ? 'A clean sweep — every painting in the right order.'
+    : `<strong>${moves === 1 ? 'One move' : moves + ' moves'}</strong> from a clean sweep.`) +
+    ' Each stage drew a fresh set of paintings on view at MoMA — play again for a different run.';
 
   const score = MAX_SCORE - moves;
   el('score-num').textContent = String(score);
   el('score-of').textContent = ` of ${MAX_SCORE}`;
   const band = BANDS.find((b) => score >= b.min);
   el('score-band').textContent = band.label;
+  el('score-title').textContent = band.title;
+  el('score-title').hidden = !band.title;
   el('score-band').className = 'score-band ' +
     (score === MAX_SCORE ? 'is-pass' : score >= 14 ? 'is-close' : 'is-fail');
 
@@ -584,8 +581,7 @@ function showResults() {
     const how = outcome(r);
     const detail = !r ? '—'
       : (r.perfect ? 'solved' : `${r.moves === 1 ? '1 move' : r.moves + ' moves'} away`) +
-        (r.shown ? ' · answer shown' : '') +
-        ` · ${r.pairsRight}/${r.pairsTotal} calls`;
+        (r.shown ? ' · answer shown' : '');
     // The badge carries the move count, so a near miss reads as a near miss.
     const badge = !r ? '—' : r.perfect ? '✓' : String(r.moves);
     li.innerHTML =
@@ -598,13 +594,12 @@ function showResults() {
 
 /* --------------------------------------------------- the closing painting list */
 
-/* Every painting the run showed, merged out of its stages into one timeline.
- * Oldest first: as a takeaway list this reads as a chronology, where the
- * board's newest-on-top was a puzzle convention. */
+/* Every painting the run showed, merged out of its stages into one timeline,
+ * newest first so it reads the same way round as the board did. */
 function buildVisitList() {
-  const works = state.seen.map((s) => s.work).sort((a, b) => a.year - b.year);
+  const works = state.seen.map((s) => s.work).sort((a, b) => b.year - a.year);
   el('visit-head').textContent =
-    `Your ${works.length} paintings, oldest to newest`;
+    `Your ${works.length} paintings, newest to oldest`;
 
   const list = el('painting-list');
   list.innerHTML = '';
