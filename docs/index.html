@@ -18,9 +18,9 @@
 <section id="screen-start" class="screen">
   <div class="card-panel">
     <h2>Five stages. Each one harder.</h2>
-    <p>You&rsquo;ll be shown paintings currently hanging at MoMA. Drag them from
-    the tray into the column so the <strong>most recent is on top</strong> and the
-    <strong>oldest is on the bottom</strong>.</p>
+    <p>You&rsquo;ll be shown paintings currently hanging at MoMA, in the wrong
+    order. Drag them so the <strong>most recent is on top</strong> and the
+    <strong>oldest is on the bottom</strong>. Click any painting to see it bigger.</p>
     <p class="muted">You never need to know the year &mdash; only which painting came
     before which. As the stages go on you&rsquo;ll get more paintings, and the
     years between them get closer together.</p>
@@ -37,6 +37,8 @@
     <p class="stage-line"><span id="stage-label"></span><span class="sep">&middot;</span><span id="stage-rule" class="muted"></span></p>
   </div>
 
+  <p class="instruction" id="instruction">Drag these into the right order</p>
+
   <div class="board">
     <div class="rank-axis" aria-hidden="true">
       <span class="rank-end">Most recent</span>
@@ -44,11 +46,6 @@
       <span class="rank-end">Oldest</span>
     </div>
     <ol class="column" id="column" aria-label="Your ordering, most recent at the top"></ol>
-  </div>
-
-  <div class="tray-wrap">
-    <p class="tray-label" id="tray-label">Tray</p>
-    <div class="tray" id="tray" aria-label="Unplaced paintings"></div>
   </div>
 
   <div class="actions">
@@ -70,6 +67,16 @@
 </section>
 
 <div class="drag-layer" id="drag-layer" aria-hidden="true"></div>
+
+<!-- Enlarged view. Before a stage is submitted this deliberately shows the
+     painting with no caption — the title and date are the answer. -->
+<div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Enlarged painting">
+  <button class="lightbox-close" id="lightbox-close" aria-label="Close">&times;</button>
+  <figure class="lightbox-figure">
+    <img id="lightbox-img" alt="">
+    <figcaption id="lightbox-caption"></figcaption>
+  </figure>
+</div>
 
 <footer class="app-footer">
   <p>Images and data from <a href="https://github.com/MuseumofModernArt/collection" target="_blank" rel="noopener">The Museum of Modern Art&rsquo;s public collection dataset</a>.

@@ -19,6 +19,11 @@
 
 * { box-sizing: border-box; }
 
+/* A display rule on an element beats the hidden attribute's default, which
+   would leave the lightbox overlay covering the page and eating every click.
+   Make hidden win everywhere. */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; }
 
 body {
@@ -117,10 +122,19 @@ a { color: var(--accent); }
 .stage-line { margin: 0; font-size: 0.9rem; }
 .stage-line .sep { margin: 0 8px; color: var(--border); }
 
+.instruction {
+  margin: 0 0 12px;
+  text-align: center;
+  font-size: 0.8rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
 /* ---------- board: the vertical ordering column ---------- */
 
 /* Cards shrink as the stage grows so all --n of them stay on screen without
-   the column itself scrolling away from the tray. */
+   the column staying on screen. */
 .board {
   display: flex;
   gap: 14px;
@@ -147,56 +161,20 @@ a { color: var(--accent); }
 .column { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 
 .slot {
-  --slot-h: clamp(104px, calc((100vh - 330px) / var(--n)), 150px);
+  /* A painting is limited by the row's height, so extra width is dead space.
+     Size the row from its height, and widen it only at the reveal, when
+     there are actually words to put beside the picture. */
+  --slot-h: clamp(104px, calc((100vh - 320px) / var(--n)), 208px);
   height: var(--slot-h);
-  width: min(92vw, 760px);
-  border: 1px dashed var(--border);
+  width: calc(var(--slot-h) * 1.55 + 22px);
+  transition: width 0.28s ease, border-color 0.12s;
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--panel);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.12s, background 0.12s;
-}
-.slot.is-empty::after {
-  content: attr(data-hint);
-  color: var(--text-dim);
-  font-size: 0.72rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.slot.is-over { border-color: var(--accent); background: var(--panel-2); }
-.slot.is-filled { border-style: solid; padding: 0; }
-
-/* ---------- tray ---------- */
-
-.tray-wrap { margin-top: 18px; }
-.tray-label {
-  margin: 0 0 8px;
-  font-size: 0.62rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  text-align: center;
-}
-.tray {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
-  align-items: center;
-  min-height: 96px;
-  padding: 10px;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius);
-  background: var(--panel);
-  transition: border-color 0.12s, background 0.12s;
-}
-.tray.is-over { border-color: var(--accent); background: var(--panel-2); }
-.tray.is-empty::after {
-  content: "All placed — press Submit";
-  color: var(--text-dim);
-  font-size: 0.75rem;
+  transition: border-color 0.12s, transform 0.14s;
 }
 
 /* ---------- painting cards ---------- */
@@ -227,10 +205,6 @@ a { color: var(--accent); }
 .card-img { display: block; height: 100%; flex-shrink: 0; }
 .card-info { display: none; }
 
-/* in the tray: image only */
-.tray .card { width: 128px; height: 96px; }
-.tray .card-img { width: 100%; }
-
 /* seated in a slot: image left, room for the facts on the right */
 .slot .card {
   width: 100%;
@@ -244,10 +218,24 @@ a { color: var(--accent); }
   text-align: left;
 }
 .slot .card-img { width: calc(var(--slot-h) * 1.55); }
-.slot.revealed .card { justify-content: flex-start; }
+.slot.revealed { width: min(94vw, calc(var(--slot-h) * 1.55 + 320px)); }
+.slot.revealed .card { justify-content: flex-start; cursor: zoom-in; }
 
-.card.is-held { opacity: 0.35; }
-.card.is-selected { outline: 2px solid var(--accent); }
+.card.is-held { opacity: 0.28; }
+body.is-dragging, body.is-dragging .card { cursor: grabbing; }
+
+/* Marks the card as clickable-to-enlarge without competing with the art. */
+.card-zoom {
+  position: absolute;
+  top: 6px; right: 8px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  opacity: 0;
+  transition: opacity 0.12s;
+  pointer-events: none;
+}
+.card:hover .card-zoom, .card:focus-visible .card-zoom { opacity: 1; }
+
 
 /* the element that follows the pointer during a drag */
 .drag-layer { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
@@ -312,6 +300,63 @@ a { color: var(--accent); }
 .mark.ok { background: var(--right); }
 .mark.no { background: var(--wrong); }
 
+/* ---------- enlarged view ---------- */
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(8, 9, 12, 0.94);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  cursor: zoom-out;
+}
+.lightbox-figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-height: 100%;
+}
+.lightbox-figure img {
+  max-width: min(92vw, 1024px);
+  max-height: 72vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+}
+.lightbox-figure figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: center;
+  max-width: 60ch;
+  cursor: auto;
+}
+.lb-year { color: var(--accent); font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.lb-title { font-style: italic; font-size: 1.02rem; }
+.lb-artist { font-size: 0.92rem; }
+.lb-bio, .lb-medium, .lb-where { color: var(--text-dim); font-size: 0.78rem; }
+.lb-link { font-size: 0.8rem; margin-top: 5px; }
+.lb-hidden { color: var(--text-dim); font-size: 0.8rem; font-style: italic; }
+
+.lightbox-close {
+  position: absolute;
+  top: 14px; right: 18px;
+  font-size: 1.9rem;
+  line-height: 1;
+  background: none;
+  border: 0;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+.lightbox-close:hover, .lightbox-close:focus-visible { color: var(--text); outline: none; background: var(--panel-2); }
+
 /* ---------- actions ---------- */
 
 .actions { margin-top: 18px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
@@ -353,8 +398,7 @@ a { color: var(--accent); }
 @media (max-width: 640px) {
   .screen { padding: 14px; }
   .card-panel { padding: 20px; }
-  .slot { width: 94vw; }
-  .tray .card { width: 96px; height: 74px; }
+  .slot.revealed { width: 94vw; }
   .slot .card-img { width: calc(var(--slot-h) * 1.25); }
   .slot.revealed .card-info { font-size: 0.74rem; }
   .card-info .r-year { font-size: 0.92rem; }
@@ -365,5 +409,5 @@ a { color: var(--accent); }
 }
 
 /* Board held until the stage's paintings have loaded. */
-.is-loading .board, .is-loading .tray { opacity: 0.25; pointer-events: none; }
-.is-loading .tray-label::after { content: " — loading paintings…"; }
+.is-loading .board { opacity: 0.25; pointer-events: none; }
+.is-loading .instruction::after { content: " — loading paintings…"; }

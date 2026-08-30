@@ -2,8 +2,8 @@
 """End-to-end test of the Chronology game with Playwright/Chromium.
 
 Serves docs/ on a scratch port and drives a real browser: checks the draw
-constraints hold, plays a full five-stage run by clicking, plays another by
-dragging, and asserts the reveal and scoring are right.
+constraints hold, plays a full five-stage run with the keyboard, exercises
+drag-reordering and the enlarged view, and asserts the scoring is right.
 """
 import functools, http.server, socket, socketserver, sys, threading
 from playwright.sync_api import sync_playwright
@@ -26,28 +26,23 @@ def serve():
     return httpd, f"http://127.0.0.1:{port}/"
 
 def ready(page):
-    """Wait for the stage to be dealt and its images to have settled."""
     page.wait_for_selector(".slot")
-    page.wait_for_selector("#screen-play:not(.is-loading)", timeout=15000)
+    page.wait_for_selector("#screen-play:not(.is-loading)", timeout=20000)
 
-def correct_order(page):
-    """Ids newest-first — the answer the game expects."""
+def answer(page):
+    """Ids newest-first — the order the game expects."""
     return page.evaluate("state.works.slice().sort((a,b)=>b.year-a.year).map(w=>w.id)")
 
-def place_by_click(page, ids):
-    for i, wid in enumerate(ids):
-        page.click(f'.card[data-id="{wid}"]')
-        page.click(f'.slot[data-index="{i}"]')
+def current(page):
+    return page.evaluate("state.order")
 
-def place_by_drag(page, ids):
-    for i, wid in enumerate(ids):
-        card = page.locator(f'.card[data-id="{wid}"]')
-        slot = page.locator(f'.slot[data-index="{i}"]')
-        cb, sb = card.bounding_box(), slot.bounding_box()
-        page.mouse.move(cb["x"] + cb["width"]/2, cb["y"] + cb["height"]/2)
-        page.mouse.down()
-        page.mouse.move(sb["x"] + sb["width"]/2, sb["y"] + sb["height"]/2, steps=12)
-        page.mouse.up()
+def solve_with_keyboard(page):
+    """Selection sort using only ArrowUp, i.e. real user input."""
+    for target, wid in enumerate(answer(page)):
+        at = current(page).index(wid)
+        page.focus(f'.card[data-id="{wid}"]')
+        for _ in range(at - target):
+            page.keyboard.press("ArrowUp")
 
 def main():
     httpd, url = serve()
@@ -60,56 +55,82 @@ def main():
         page.goto(url)
 
         print("\n== data + draw constraints ==")
-        n = page.evaluate("PAINTINGS.length")
-        check("dataset loaded", n > 200, f"n={n}")
-        check("every painting has image+year+artist", page.evaluate(
-            "PAINTINGS.every(w=>w.image&&w.year&&w.artist)"))
+        check("dataset loaded", page.evaluate("PAINTINGS.length") > 200)
+        check("every painting has image+year+artist",
+              page.evaluate("PAINTINGS.every(w=>w.image&&w.year&&w.artist)"))
+        check("ladder is 20/15/10/5/2 years",
+              page.evaluate("STAGES.map(s=>s.gap).join()") == "20,15,10,5,2",
+              page.evaluate("STAGES.map(s=>s.gap).join()"))
+        check("ladder is 3-7 paintings",
+              page.evaluate("STAGES.map(s=>s.n).join()") == "3,4,5,6,7")
 
-        # 200 synthetic draws per stage, checked against the stated rules.
         bad = page.evaluate("""() => {
           const out = [];
           STAGES.forEach((s, si) => {
             for (let t = 0; t < 200; t++) {
               const w = drawStage(s);
               if (!w || w.length !== s.n) { out.push(`stage${si+1} bad draw`); return; }
-              const artists = new Set(w.map(x => x.artist));
-              if (artists.size !== s.n) { out.push(`stage${si+1} repeat artist`); return; }
+              if (new Set(w.map(x => x.artist)).size !== s.n) {
+                out.push(`stage${si+1} repeated artist`); return; }
               for (let i = 0; i < w.length; i++)
                 for (let j = i+1; j < w.length; j++)
                   if (Math.abs(w[i].year - w[j].year) < s.gap) {
-                    out.push(`stage${si+1} gap ${Math.abs(w[i].year-w[j].year)} < ${s.gap}`); return;
-                  }
+                    out.push(`stage${si+1} gap ${Math.abs(w[i].year-w[j].year)} < ${s.gap}`); return; }
             }
           });
           return out;
         }""")
         check("1000 draws satisfy distinct-artist + gap rules", not bad, "; ".join(bad[:3]))
 
-        print("\n== full run, placing by CLICK, always correct ==")
+        print("\n== full run, solving with the KEYBOARD ==")
         page.click("#btn-start")
         check("board is gated while images load, then released",
-              page.wait_for_selector("#screen-play:not(.is-loading)", timeout=15000) is not None)
+              page.wait_for_selector("#screen-play:not(.is-loading)", timeout=20000) is not None)
         for stage in range(5):
             ready(page)
-            cards = page.locator("#tray .card").count()
-            expect_n = page.evaluate("state.slots.length")
-            check(f"stage {stage+1}: {expect_n} cards in tray", cards == expect_n, f"got {cards}")
-            check(f"stage {stage+1}: submit disabled while tray full",
-                  page.is_disabled("#btn-submit"))
-            place_by_click(page, correct_order(page))
-            check(f"stage {stage+1}: tray empty after placing",
-                  page.locator("#tray .card").count() == 0)
-            check(f"stage {stage+1}: submit now enabled", not page.is_disabled("#btn-submit"))
+            n = page.evaluate("state.works.length")
+            check(f"stage {stage+1}: {n} paintings dealt into the column",
+                  page.locator(".slot .card").count() == n)
+            check(f"stage {stage+1}: no separate tray exists",
+                  page.locator("#tray").count() == 0)
+            check(f"stage {stage+1}: dealt in a wrong order",
+                  current(page) != answer(page))
+            check(f"stage {stage+1}: submit available immediately",
+                  not page.is_disabled("#btn-submit"))
+            if stage == 0:
+                page.click(f'.card[data-id="{current(page)[0]}"]')
+                page.wait_for_selector("#lightbox:not([hidden])")
+                check("enlarged view hides the answer before submitting",
+                      "hidden until you submit" in page.inner_text("#lightbox-caption"),
+                      page.inner_text("#lightbox-caption"))
+                page.screenshot(path="/tmp/chrono_lightbox_pre.png")
+                page.keyboard.press("Escape")
+                page.wait_for_selector("#lightbox", state="hidden")
+                check("Escape closes the enlarged view", page.is_hidden("#lightbox"))
+
+            solve_with_keyboard(page)
+            check(f"stage {stage+1}: keyboard reordering solved the board",
+                  current(page) == answer(page))
             page.click("#btn-submit")
             page.wait_for_selector(".slot.revealed")
             check(f"stage {stage+1}: verdict is correct",
                   "Correct" in page.inner_text("#verdict"), page.inner_text("#verdict"))
-            check(f"stage {stage+1}: all slots marked ok",
-                  page.locator(".slot.revealed.ok").count() == expect_n)
+            check(f"stage {stage+1}: every slot marked right",
+                  page.locator(".slot.revealed.ok").count() == n)
             check(f"stage {stage+1}: reveal shows year+title+artist",
-                  page.locator(".card-info .r-year").count() == expect_n
-                  and page.locator(".card-info .r-artist").count() == expect_n)
+                  page.locator(".card-info .r-year").count() == n
+                  and page.locator(".card-info .r-artist").count() == n)
             if stage == 0:
+                page.click(f'.card[data-id="{current(page)[0]}"]')
+                page.wait_for_selector("#lightbox:not([hidden])")
+                cap = page.inner_text("#lightbox-caption")
+                check("enlarged view shows full details after submitting",
+                      any(ch.isdigit() for ch in cap) and "hidden until" not in cap, cap[:60])
+                check("enlarged view links to moma.org",
+                      page.locator("#lightbox-caption a.lb-link").count() == 1)
+                page.screenshot(path="/tmp/chrono_lightbox_post.png")
+                page.click("#lightbox-close")
+                page.wait_for_selector("#lightbox", state="hidden")
                 page.screenshot(path="/tmp/chrono_stage1_revealed.png")
             page.click("#btn-next")
 
@@ -117,43 +138,40 @@ def main():
         check("results screen: perfect run", "Perfect run" in page.inner_text("#done-title"),
               page.inner_text("#done-title"))
         check("results: 5 rows, all ticked", page.locator(".scorecard .sc-badge.ok").count() == 5)
-        page.screenshot(path="/tmp/chrono_results.png")
 
-        print("\n== full run, placing by DRAG, deliberately reversed ==")
-        page.click("#btn-again")
-        ready(page)
-        place_by_drag(page, list(reversed(correct_order(page))))
-        check("drag placed every card", page.locator("#tray .card").count() == 0)
+        print("\n== drag reordering ==")
+        page.click("#btn-again"); ready(page)
+        before = current(page)
+        card = page.locator(f'.card[data-id="{before[-1]}"]')
+        slot = page.locator('.slot[data-index="0"]')
+        cb, sb = card.bounding_box(), slot.bounding_box()
+        page.mouse.move(cb["x"] + cb["width"]/2, cb["y"] + cb["height"]/2)
+        page.mouse.down()
+        page.mouse.move(sb["x"] + sb["width"]/2, sb["y"] + sb["height"]/2, steps=14)
+        page.mouse.up()
+        after = current(page)
+        check("dragging the bottom painting to the top moves it there",
+              after[0] == before[-1], f"{before} -> {after}")
+        check("drag shifts the others down rather than swapping",
+              after == [before[-1]] + before[:-1], f"{before} -> {after}")
+        check("drag loses no paintings", sorted(after) == sorted(before))
+        check("a drag does not open the enlarged view", page.is_hidden("#lightbox"))
+
+        print("\n== wrong answer ==")
+        page.evaluate("state.order.reverse(); render()")
+        if current(page) == answer(page):
+            page.evaluate("state.order.reverse(); render()")
         page.click("#btn-submit")
         page.wait_for_selector(".slot.revealed")
-        check("reversed order is judged wrong", "Not quite" in page.inner_text("#verdict"),
+        check("a wrong order is judged wrong", "Not quite" in page.inner_text("#verdict"),
               page.inner_text("#verdict"))
-        check("reversed order: both ends wrong",
-              page.locator(".slot.revealed.no").count() >= 2)
-        page.screenshot(path="/tmp/chrono_wrong.png")
-
-        print("\n== interaction details ==")
-        page.click("#btn-next"); ready(page)
-        ids = page.evaluate("state.works.map(w=>w.id)")
-        # swap semantics: placing B on a slot held by A should evict A, not lose it
-        page.click(f'.card[data-id="{ids[0]}"]'); page.click('.slot[data-index="0"]')
-        page.click(f'.card[data-id="{ids[1]}"]'); page.click('.slot[data-index="0"]')
-        check("occupied slot swaps, no card lost",
-              page.evaluate("state.slots.filter(Boolean).length + state.tray.length") == len(ids),
-              page.evaluate("JSON.stringify({s:state.slots,t:state.tray})"))
-        check("evicted card returned to tray", page.evaluate(f"state.tray.includes('{ids[0]}')"))
-        # reset
-        page.click("#btn-shuffle"); page.wait_for_selector(".slot.is-empty")
-        check("reset clears the column", page.evaluate("state.slots.every(s=>!s)"))
-        check("reset refills the tray",
-              page.evaluate("state.tray.length === state.slots.length"))
+        check("wrong placements are marked", page.locator(".slot.revealed.no").count() >= 2)
 
         print("\n== images actually load from moma.org ==")
-        page.wait_for_timeout(2500)
+        page.wait_for_timeout(2000)
         ok = page.evaluate("""() => Array.from(document.querySelectorAll('.card img'))
               .map(i => i.complete && i.naturalWidth > 0)""")
         check("all stage images rendered", ok and all(ok), f"{sum(1 for x in ok if x)}/{len(ok)}")
-
         check("no console/page errors", not errors, "; ".join(errors[:3]))
         browser.close()
     httpd.shutdown()

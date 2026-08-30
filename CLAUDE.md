@@ -1,7 +1,9 @@
 # Chronology — MoMA
 
 A static drag-and-drop game: put MoMA paintings in the order they were made,
-newest at the top of the column, oldest at the bottom. Five stages, each
+newest at the top of the column, oldest at the bottom. Each stage deals its
+paintings straight into the column in a deliberately wrong order, so the task
+is pure reordering — there is no tray or staging area. Five stages, each
 harder than the last. Served straight from `docs/`, no build step — plain
 `<script>` tags load everything.
 
@@ -70,10 +72,10 @@ years apart is usually legible from style alone, 2 years is not.
 
 | Stage | Paintings | Min gap |
 |-------|-----------|---------|
-| 1 | 3 | 15 years |
-| 2 | 4 | 10 years |
-| 3 | 5 | 6 years  |
-| 4 | 6 | 4 years  |
+| 1 | 3 | 20 years |
+| 2 | 4 | 15 years |
+| 3 | 5 | 10 years |
+| 4 | 6 | 5 years  |
 | 5 | 7 | 2 years  |
 
 Every row was simulated against the real pool before being fixed, and
@@ -83,8 +85,27 @@ unsatisfiable, and `drawStage` will quietly fall back to a relaxed gap.
 
 ## Interaction
 
-Placement has three input paths, all funnelled through `moveCard()` so they
-can't drift apart: pointer drag (mouse and touch), click-to-pick-up then
-click-to-place, and keyboard (slots are focusable, Enter/Space places). Any
-new input path should call `moveCard()` too. Dropping onto an occupied slot
-swaps rather than displaces to the tray.
+Each input has exactly one meaning, so nothing competes:
+
+- **drag** a painting — reorders, funnelled through `moveTo()`
+- **click** a painting — opens it larger in the lightbox
+- **arrow keys** on a focused painting — moves it one place up or down
+- **Enter/Space** on a focused painting — opens the lightbox
+
+Any new input path should call `moveTo()` rather than touch `state.order`.
+Moving is insert-and-shift, not swap: lifting a painting out and re-inserting
+it shifts everything between, which is how people expect "put this one above
+that one" to behave.
+
+The lightbox deliberately shows **no caption before the stage is submitted** —
+the title and date are the answer. After submitting it shows the full record
+and a link to moma.org. Dragging is disabled once a stage is answered, but
+clicking to enlarge stays live (`drag.noDrag`), because that is exactly when
+people want a closer look.
+
+Two layout rules that look arbitrary but aren't: a painting is limited by its
+row's *height*, so extra row width is dead space — row width is derived from
+`--slot-h` and only widens at the reveal, when there are words to put beside
+the picture. And `[hidden] { display: none !important; }` is load-bearing: the
+lightbox sets `display: flex`, which otherwise beats the `hidden` attribute and
+leaves an invisible overlay swallowing every click on the page.
