@@ -374,6 +374,54 @@ function startStage(index) {
   render();
 }
 
+/* -------------------------------------------------------------- scoring */
+
+/* Exact-position marking is both harsh and inconsistent for an ordering task:
+ * dragging the newest painting to the bottom scores zero despite being one
+ * drag from correct, while swapping the two end paintings scores well despite
+ * being twice as far off. So a stage is scored two ways instead.
+ *
+ * keepSet() finds the largest group of paintings already in the right order
+ * relative to each other — everything outside it has to move, and that count
+ * is provably the minimum number of drags needed. n is at most 7, so we can
+ * check every subset and break ties toward keeping paintings that are also in
+ * their exact final position, which is what a player reads as "already right".
+ */
+function keepSet(order, answer) {
+  const rank = new Map(answer.map((id, i) => [id, i]));
+  const seq = order.map((id) => rank.get(id));
+  let best = null;
+  for (let mask = 0; mask < (1 << seq.length); mask++) {
+    const idx = [];
+    for (let i = 0; i < seq.length; i++) if (mask & (1 << i)) idx.push(i);
+    let rising = true;
+    for (let i = 1; i < idx.length; i++) {
+      if (seq[idx[i]] <= seq[idx[i - 1]]) { rising = false; break; }
+    }
+    if (!rising) continue;
+    const settled = idx.filter((i) => seq[i] === i).length;
+    if (!best || idx.length > best.len ||
+        (idx.length === best.len && settled > best.settled)) {
+      best = { len: idx.length, settled, idx };
+    }
+  }
+  return new Set(best.idx);
+}
+
+/* How many "which came first?" calls the player got right — the task exactly
+ * as the game describes it to them. */
+function pairScore(order, answer) {
+  const rank = new Map(answer.map((id, i) => [id, i]));
+  let right = 0, total = 0;
+  for (let i = 0; i < order.length; i++) {
+    for (let j = i + 1; j < order.length; j++) {
+      total++;
+      if (rank.get(order[i]) < rank.get(order[j])) right++;
+    }
+  }
+  return { right, total };
+}
+
 /* -------------------------------------------------------------- submitting */
 
 function submit() {
@@ -382,18 +430,23 @@ function submit() {
 
   const byId = new Map(state.works.map((w) => [w.id, w]));
   const answer = correctOrder(state.works);
+  const keep = keepSet(state.order, answer);
+  const moves = state.order.length - keep.size;
+  const pairs = pairScore(state.order, answer);
 
-  let rightCount = 0;
   state.order.forEach((id, i) => {
     const work = byId.get(id);
-    const ok = id === answer[i];
-    if (ok) rightCount++;
-    state.slotEls[i].classList.add('revealed', ok ? 'ok' : 'no');
+    const stays = keep.has(i);
+    state.slotEls[i].classList.add('revealed', stays ? 'ok' : 'no');
 
     const card = state.cardEls.get(id);
     const mark = document.createElement('span');
-    mark.className = `mark ${ok ? 'ok' : 'no'}`;
-    mark.textContent = ok ? '✓' : '✕';
+    const target = answer.indexOf(id) + 1;
+    mark.className = `mark ${stays ? 'ok' : 'no'}`;
+    // A painting that has to move says where it belongs, so the reveal is
+    // a correction rather than just a verdict.
+    mark.textContent = stays ? '✓' : `${target < i + 1 ? '↑' : '↓'} ${target}`;
+    mark.title = stays ? 'In the right order' : `Belongs in position ${target}`;
     card.appendChild(mark);
 
     card.querySelector('.card-info').innerHTML =
@@ -403,14 +456,20 @@ function submit() {
       (work.gallery ? `<span class="r-where">${escapeHtml(work.gallery)}</span>` : '');
   });
 
-  const perfect = rightCount === state.order.length;
-  state.results[state.stageIndex] = { perfect, rightCount, n: state.order.length };
+  const perfect = moves === 0;
+  state.results[state.stageIndex] = {
+    perfect, moves, n: state.order.length,
+    pairsRight: pairs.right, pairsTotal: pairs.total
+  };
 
   const verdict = el('verdict');
   verdict.className = `verdict ${perfect ? 'ok' : 'no'}`;
-  verdict.textContent = perfect
-    ? 'Correct — that’s the right order.'
-    : `Not quite — ${rightCount} of ${state.order.length} in the right place.`;
+  verdict.innerHTML = perfect
+    ? '<span class="v-head">Correct — that’s the right order.</span>' +
+      `<span class="v-sub">All ${pairs.total} before-and-after calls right.</span>`
+    : `<span class="v-head">${moves === 1 ? 'One move' : moves + ' moves'} from correct.</span>` +
+      `<span class="v-sub">${pairs.right} of ${pairs.total} before-and-after calls right — ` +
+      `move the marked painting${moves === 1 ? '' : 's'}.</span>`;
   el('instruction').textContent = 'Click any painting to see it larger';
 
   el('pips').children[state.stageIndex].className = perfect ? 'is-pass' : 'is-fail';
@@ -438,23 +497,35 @@ function escapeHtml(s) {
 
 function showResults() {
   show('screen-done');
-  const passed = state.results.filter((r) => r && r.perfect).length;
+  const done = state.results.filter(Boolean);
+  const passed = done.filter((r) => r.perfect).length;
+  const right = done.reduce((t, r) => t + r.pairsRight, 0);
+  const total = done.reduce((t, r) => t + r.pairsTotal, 0);
+  const moves = done.reduce((t, r) => t + r.moves, 0);
+
   el('done-title').textContent =
     passed === STAGES.length ? 'Perfect run.' :
     passed === 0 ? 'That was a hard one.' :
     `${passed} of ${STAGES.length} stages solved.`;
-  el('done-line').textContent =
-    'Each stage drew a fresh set of paintings on view at MoMA. Play again for a different run.';
+  // The run score is pairwise: across five stages there are 55 before-and-
+  // after judgements, and that count scales sensibly as the stages grow.
+  el('done-line').innerHTML =
+    `<strong>${right} of ${total}</strong> before-and-after calls right` +
+    (moves ? `, and ${moves === 1 ? 'one move' : moves + ' moves'} from a clean sweep` : '') +
+    '. Each stage drew a fresh set of paintings on view at MoMA — play again for a different run.';
 
   const list = el('scorecard');
   list.innerHTML = '';
   STAGES.forEach((stage, i) => {
     const r = state.results[i];
     const li = document.createElement('li');
+    const detail = !r ? '—'
+      : r.perfect ? `solved · ${r.pairsRight}/${r.pairsTotal} calls`
+      : `${r.moves === 1 ? '1 move' : r.moves + ' moves'} away · ${r.pairsRight}/${r.pairsTotal} calls`;
     li.innerHTML =
       `<span class="sc-badge ${r && r.perfect ? 'ok' : 'no'}">${r && r.perfect ? '✓' : '✕'}</span>` +
       `<span>Stage ${i + 1} — ${stage.n} paintings, ${stage.gap}+ years apart</span>` +
-      `<span class="sc-detail">${r ? `${r.rightCount} of ${r.n} placed` : '—'}</span>`;
+      `<span class="sc-detail">${detail}</span>`;
     list.appendChild(li);
   });
 }

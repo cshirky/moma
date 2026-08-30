@@ -83,6 +83,30 @@ Every row was simulated against the real pool before being fixed, and
 the ladder, re-run the test — a pool this small can make an aggressive row
 unsatisfiable, and `drawStage` will quietly fall back to a relaxed gap.
 
+## Scoring
+
+A stage is scored two ways, because exact-position marking is wrong for an
+ordering task — it is not merely harsh but *inconsistent*. Dragging the newest
+painting to the bottom scores 0 of 5 despite being one drag from correct,
+while swapping the two end paintings scores 3 of 5 despite being twice as far
+off and getting only 30% of the before/after calls right.
+
+- **Moves from correct** (`keepSet()`) is the headline. It is `n` minus the
+  largest group of paintings already in the right order relative to each
+  other, which is provably the minimum number of drags needed. It also tells
+  the reveal what to mark: the keepers get a tick, everything else gets the
+  position it belongs in. `n` is at most 7, so every subset is checked;
+  ties break toward keeping paintings that are also in their exact final
+  position, which is what a player reads as "already right".
+- **Before-and-after calls** (`pairScore()`) is the run total, shown on the
+  results screen. It is the task exactly as the game describes it to the
+  player, and it scales as stages grow: the five stages hold
+  3+6+10+15+21 = **55 pairs**.
+
+`test_game.py` pins both against hand-worked cases, including the
+one-drag-from-correct board that the old rule scored zero on. Keep those cases
+passing if you touch the scoring.
+
 ## Interaction
 
 Each input has exactly one meaning, so nothing competes:

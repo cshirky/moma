@@ -286,15 +286,21 @@ body.is-dragging, body.is-dragging .card { cursor: grabbing; }
   margin-top: 2px;
 }
 
+/* A pill rather than a dot: a painting that has to move carries the position
+   it belongs in, so the badge has to hold "↑ 2" as well as a bare tick. */
 .mark {
   position: absolute;
   top: 6px; left: 6px;
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 0.78rem;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.76rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: #12140f;
 }
 .mark.ok { background: var(--right); }
@@ -360,9 +366,11 @@ body.is-dragging, body.is-dragging .card { cursor: grabbing; }
 /* ---------- actions ---------- */
 
 .actions { margin-top: 18px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.verdict { margin: 0; min-height: 1.4em; font-size: 0.95rem; }
-.verdict.ok { color: var(--right); }
-.verdict.no { color: var(--wrong); }
+.verdict { margin: 0; min-height: 1.4em; display: flex; flex-direction: column; gap: 3px; }
+.v-head { font-size: 0.98rem; font-weight: 600; }
+.v-sub { font-size: 0.83rem; color: var(--text-dim); }
+.verdict.ok .v-head { color: var(--right); }
+.verdict.no .v-head { color: var(--accent); }
 
 /* ---------- scorecard ---------- */
 
