@@ -11,6 +11,12 @@
 </head>
 <body>
 
+<nav class="game-nav" aria-label="Games">
+  <a href="./" aria-current="page">Chronology</a>
+  <a href="sameyear.html">Same Year</a>
+  <a href="closeup.html">Close Up</a>
+</nav>
+
 <header class="app-header">
   <h1>Chronology Challenge</h1>
   <p class="subtitle">Put The Museum of Modern Art&rsquo;s paintings in the right order</p>
@@ -90,11 +96,13 @@
 <!-- Enlarged view. Before a stage is submitted this deliberately shows the
      painting with no caption — the title and date are the answer. -->
 <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Enlarged painting">
-  <button class="lightbox-close" id="lightbox-close" aria-label="Close">&times;</button>
-  <figure class="lightbox-figure">
-    <img id="lightbox-img" alt="">
-    <figcaption id="lightbox-caption"></figcaption>
-  </figure>
+  <img id="lightbox-img" alt="" draggable="false">
+  <div class="lightbox-tools">
+    <button class="lb-tool" id="lb-zoom-out" aria-label="Zoom out">&minus;</button>
+    <button class="lb-tool" id="lb-zoom-in" aria-label="Zoom in">+</button>
+    <button class="lb-tool" id="lightbox-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="lightbox-caption" id="lightbox-caption"></div>
 </div>
 
 <footer class="app-footer">

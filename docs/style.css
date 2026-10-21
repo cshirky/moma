@@ -333,6 +333,10 @@ body.is-dragging, body.is-dragging .card { cursor: grabbing; }
 
 /* ---------- enlarged view ---------- */
 
+/* The painting is sized in app.js to 95% of the screen's width or height,
+   whichever keeps all of it in view, then zoomed and panned with a transform.
+   Caption and tools float over it, since a painting that tall leaves no room
+   beside it. touch-action: none hands pinches to app.js instead of the page. */
 .lightbox {
   position: fixed;
   inset: 0;
@@ -341,51 +345,68 @@ body.is-dragging, body.is-dragging .card { cursor: grabbing; }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  overflow: hidden;
   cursor: zoom-out;
+  touch-action: none;
 }
-.lightbox-figure {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  max-height: 100%;
-}
-.lightbox-figure img {
-  max-width: min(92vw, 1024px);
-  max-height: 72vh;
-  object-fit: contain;
+#lightbox-img {
+  flex: none;
   border-radius: 4px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+  transform-origin: center;
+  cursor: zoom-in;
+  user-select: none;
+  -webkit-user-drag: none;
 }
-.lightbox-figure figcaption {
+.lightbox.is-loading #lightbox-img { visibility: hidden; }
+.lightbox.is-zoomed #lightbox-img { cursor: grab; }
+.lightbox.is-panning #lightbox-img { cursor: grabbing; }
+.lightbox.is-animating #lightbox-img { transition: transform 0.2s ease; }
+
+.lightbox-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(60ch, calc(100% - 24px));
   display: flex;
   flex-direction: column;
   gap: 3px;
   text-align: center;
-  max-width: 60ch;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  background: rgba(22, 24, 29, 0.82);
+  transition: opacity 0.2s;
 }
+/* Zooming in is for looking, so the caption gets out of the way. */
+.lightbox.is-zoomed .lightbox-caption { opacity: 0; pointer-events: none; }
 .lb-year { color: var(--accent); font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
 .lb-title { font-style: italic; font-size: 1.02rem; }
 .lb-artist { font-size: 0.92rem; }
 .lb-bio, .lb-medium, .lb-where { color: var(--text-dim); font-size: 0.78rem; }
 .lb-link { font-size: 0.8rem; margin-top: 5px; }
 .lb-hidden { color: var(--text-dim); font-size: 0.8rem; font-style: italic; }
+.lb-hint { color: var(--text-dim); font-size: 0.74rem; margin-top: 4px; }
 
-.lightbox-close {
+.lightbox-tools {
   position: absolute;
-  top: 14px; right: 18px;
-  font-size: 1.9rem;
+  top: 12px; right: 12px;
+  display: flex;
+  gap: 6px;
+}
+.lb-tool {
+  width: 40px; height: 40px;
+  font-size: 1.5rem;
   line-height: 1;
-  background: none;
   border: 0;
+  border-radius: 8px;
+  background: rgba(22, 24, 29, 0.78);
   color: var(--text-dim);
   cursor: pointer;
-  padding: 6px 12px;
-  border-radius: 8px;
 }
-.lightbox-close:hover, .lightbox-close:focus-visible { color: var(--text); outline: none; background: var(--panel-2); }
+.lb-tool:hover, .lb-tool:focus-visible { color: var(--text); outline: none; background: var(--panel-2); }
+.lb-tool:disabled { opacity: 0.35; cursor: default; background: rgba(22, 24, 29, 0.78); color: var(--text-dim); }
 
 /* ---------- actions ---------- */
 
@@ -559,10 +580,219 @@ body.is-dragging, body.is-dragging .card { cursor: grabbing; }
 /* Taking the list to the museum: print only the route. */
 @media print {
   body { background: #fff; color: #000; }
-  .app-header, .app-footer, .score-block, #done-title, #done-line,
+  .game-nav, .app-header, .app-footer, .score-block, #done-title, #done-line,
   .scorecard, .visit > h3, .visit > p, .painting-list, .visit-actions,
   #btn-again { display: none !important; }
   .card-panel, .map-out { border: none; background: none; padding: 0; }
   .map-floor h5, .pl-year { color: #000; }
   .map-out .btn { display: none !important; }
+}
+
+/* ---------- menu of games ---------- */
+
+.game-nav {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 22px;
+  padding: 9px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.88rem;
+}
+.game-nav a { color: var(--text-dim); text-decoration: none; padding: 3px 2px; border-bottom: 2px solid transparent; }
+.game-nav a:hover { color: var(--text); }
+.game-nav a[aria-current="page"] { color: var(--text); border-bottom-color: var(--accent); }
+
+/* ---------- shared by Same Year and Close Up ---------- */
+
+/* The lifted copy that follows the pointer (common.js). pointer-events: none
+   lets elementFromPoint see the drop target underneath it. */
+.ghost {
+  position: fixed;
+  z-index: 90;
+  pointer-events: none;
+  opacity: 0.92;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+  margin: 0;
+}
+.is-held { opacity: 0.28; }
+body.is-dragging { cursor: grabbing; user-select: none; }
+.sy-board.is-loading, .cu-board.is-loading { opacity: 0.35; pointer-events: none; }
+
+/* Plain-text instructions; Chronology's .instruction is a short all-caps
+   line, which reads badly at sentence length. */
+.intro {
+  max-width: 640px;
+  margin: 0 auto 16px;
+  text-align: center;
+  line-height: 1.5;
+  color: var(--text-dim);
+  font-size: 0.92rem;
+}
+
+/* ---------- Same Year ---------- */
+
+.sy-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 10px 14px;
+  max-width: 760px;
+  margin: 0 auto;
+  align-items: stretch;
+}
+.sy-head {
+  text-align: center;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+.sy-year-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+.sy-cell {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sy-cell.is-over { border-color: var(--accent); background: var(--panel-2); }
+.sy-cell.ok { border-color: var(--right); }
+.sy-cell.no { border-color: var(--wrong); }
+.sy-card {
+  position: relative;
+  height: clamp(96px, 17vh, 160px);
+  cursor: grab;
+  touch-action: none;
+  border-radius: 6px;
+  outline-offset: 2px;
+}
+.sy-board.is-locked .sy-card { cursor: default; }
+.sy-card img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
+.sy-card.ghost { background: var(--panel-2); border-radius: 8px; }
+.sy-mark {
+  position: absolute;
+  top: 4px; right: 4px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.85rem; color: #10140f;
+}
+.sy-mark.ok { background: var(--right); }
+.sy-mark.no { background: var(--wrong); }
+.sy-info { display: flex; flex-direction: column; gap: 1px; text-align: center; font-size: 0.78rem; line-height: 1.3; }
+.sy-year { color: var(--accent); font-weight: 700; }
+.sy-title { font-style: italic; }
+.sy-artist { color: var(--text-dim); }
+
+@media (max-width: 640px) {
+  .sy-board { gap: 8px 6px; }
+  .sy-year-cell { font-size: 0.95rem; padding: 0; }
+  .sy-head { font-size: 0.66rem; }
+}
+
+/* ---------- Close Up ---------- */
+
+.cu-board { max-width: 980px; margin: 0 auto; }
+.cu-status { text-align: center; margin: 0 0 12px; font-size: 0.86rem; min-height: 1.3em; }
+.cu-paintings {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.cu-item { display: flex; flex-direction: column; gap: 8px; }
+.cu-view {
+  position: relative;
+  height: clamp(150px, 30vh, 260px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0d0e11;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: zoom-out;
+  overflow: hidden;
+  outline-offset: 2px;
+}
+.cu-board.is-locked .cu-view { cursor: default; }
+.cu-view canvas { display: block; }
+.cu-shown {
+  position: absolute;
+  left: 6px; bottom: 6px;
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(13, 14, 17, 0.8);
+  color: var(--text-dim);
+}
+.cu-slot {
+  min-height: 78px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  outline-offset: 2px;
+}
+.cu-slot.is-over, .cu-tray.is-over { border-color: var(--accent); background: var(--panel-2); }
+.cu-slot-empty, .cu-tray-empty { align-self: center; color: var(--text-dim); font-size: 0.78rem; padding: 8px; }
+.cu-slot .cu-label { flex: 1; }
+
+.cu-tray {
+  margin-top: 20px;
+  min-height: 92px;
+  padding: 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+.cu-tray-empty { grid-column: 1 / -1; text-align: center; }
+
+.cu-label {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  outline-offset: 2px;
+}
+.cu-label.is-selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.cu-board.is-locked .cu-label { cursor: default; }
+.cu-label.ok { border-color: var(--right); }
+.cu-label.no { border-color: var(--wrong); }
+.cu-l-title { font-style: italic; }
+.cu-l-artist { color: var(--text-dim); }
+.cu-l-year { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.cu-verdict { margin: 0; font-size: 0.78rem; line-height: 1.35; }
+.cu-verdict.ok { color: var(--right); }
+.cu-verdict.no { color: var(--text-dim); }
+
+.cu-result { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.cu-score { font-size: 2.2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 760px) {
+  .cu-paintings, .cu-tray { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cu-view { height: clamp(130px, 26vh, 220px); }
 }

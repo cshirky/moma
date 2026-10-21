@@ -126,9 +126,51 @@ def main():
                             return getComputedStyle(c).opacity;}""")) > 0.2)
 
                 page.click(first); page.wait_for_selector("#lightbox:not([hidden])")
-                page.locator("#lightbox-img").click()
+                page.wait_for_function("document.querySelector('#lightbox-img').naturalWidth > 0"
+                                       " && !document.querySelector('#lightbox').classList.contains('is-loading')")
+                fit = page.evaluate("""()=>{const r=document.querySelector('#lightbox-img').getBoundingClientRect();
+                      return {w:r.width,h:r.height,vw:innerWidth,vh:innerHeight};}""")
+                fw, fh = fit["w"] / fit["vw"], fit["h"] / fit["vh"]
+                check("enlarged painting fills 95% of the limiting dimension",
+                      max(fw, fh) > 0.94 and max(fw, fh) < 0.96 and fw <= 0.951 and fh <= 0.951,
+                      f"{fw:.3f} of width, {fh:.3f} of height")
+
+                def lb_scale():
+                    return page.evaluate("lb.scale")
+                img = page.locator("#lightbox-img")
+                box = img.bounding_box()
+                page.mouse.click(box["x"] + box["width"] * 0.3, box["y"] + box["height"] * 0.3)
+                page.wait_for_timeout(300)
+                check("clicking the painting zooms in rather than dismissing",
+                      page.is_visible("#lightbox") and lb_scale() > 2, lb_scale())
+                check("the caption gets out of the way while zoomed",
+                      page.evaluate("getComputedStyle(document.querySelector('#lightbox-caption')).opacity") == "0")
+                before = page.evaluate("[lb.x, lb.y]")
+                cx, cy = fit["vw"] / 2, fit["vh"] / 2
+                page.mouse.move(cx, cy); page.mouse.down()
+                page.mouse.move(cx - 60, cy - 40, steps=6); page.mouse.up()
+                after = page.evaluate("[lb.x, lb.y]")
+                check("dragging a zoomed painting pans it",
+                      after[0] < before[0] and after[1] < before[1] and page.is_visible("#lightbox"),
+                      f"{before} -> {after}")
+                page.mouse.click(cx, cy)
+                page.wait_for_timeout(300)
+                check("clicking a zoomed painting zooms back out to fit",
+                      lb_scale() == 1 and page.evaluate("[lb.x, lb.y]") == [0, 0])
+                page.mouse.move(cx, cy); page.mouse.wheel(0, -400)
+                page.wait_for_timeout(100)
+                check("scrolling over the painting zooms it", lb_scale() > 1.5, lb_scale())
+                page.click("#lb-zoom-out")
+                page.click("#lb-zoom-in")
+                check("the zoom buttons work without closing the view",
+                      page.is_visible("#lightbox") and lb_scale() > 1.5)
+                page.keyboard.press("0")
+                check("0 resets the zoom", lb_scale() == 1)
+                check("zoom out is disabled at the fitted size", page.is_disabled("#lb-zoom-out"))
+                page.wait_for_timeout(300)   # let the zoom-out animation finish
+                page.mouse.click(3, 3)
                 page.wait_for_selector("#lightbox", state="hidden")
-                check("clicking the painting itself dismisses it", page.is_hidden("#lightbox"))
+                check("clicking the backdrop dismisses it", page.is_hidden("#lightbox"))
 
                 page.click(first); page.wait_for_selector("#lightbox:not([hidden])")
                 page.locator("#lightbox-caption").click(force=True)
@@ -360,7 +402,136 @@ def main():
               and page.locator("#pips li.is-fail").count() >= 1,
               page.evaluate("[...document.querySelectorAll('#pips li')].map(l=>l.className).join('|')"))
 
+        print("\n== menu of games ==")
+        for path, current_name in [("", "Chronology"), ("sameyear.html", "Same Year"), ("closeup.html", "Close Up")]:
+            page.goto(url + path)
+            names = page.eval_on_selector_all(".game-nav a", "as => as.map(a => a.textContent)")
+            cur = page.eval_on_selector_all('.game-nav a[aria-current="page"]', "as => as.map(a => a.textContent)")
+            check(f"{current_name}: menu links all three games and marks this one",
+                  names == ["Chronology", "Same Year", "Close Up"] and cur == [current_name], f"{names} {cur}")
+
+        print("\n== Same Year ==")
+        page.goto(url + "sameyear.html")
+        page.wait_for_selector("#sy-board:not(.is-loading) .sy-card", timeout=30000)
+        check("enough pairable years for varied rounds", page.evaluate("BY_YEAR.size") >= 15,
+              page.evaluate("BY_YEAR.size"))
+        bad = page.evaluate("""() => { const out = [];
+            for (let i = 0; i < 500; i++) {
+              const rows = drawRound();
+              if (!rows || rows.length !== ROWS) { out.push('short draw'); continue; }
+              const years = rows.map(r => r.year);
+              if (new Set(years).size !== ROWS) out.push('repeated year');
+              if (years.some((y, j) => j && y > years[j-1])) out.push('not newest first');
+              const artists = rows.flatMap(r => [r.abstract.artist, r.representational.artist]);
+              if (new Set(artists).size !== ROWS * 2) out.push('repeated artist');
+              for (const r of rows) {
+                if (STYLES[r.abstract.id] !== 'abstract' || STYLES[r.representational.id] !== 'representational')
+                  out.push('wrong kind in column');
+                if (r.abstract.year !== r.year || r.representational.year !== r.year) out.push('year mismatch');
+              }
+              const ids = rows.map(r => r.abstract.id), dealt = deal(ids);
+              if (dealt.some((id, j) => id === ids[j])) out.push('dealt in place');
+            }
+            return [...new Set(out)]; }""")
+        check("500 draws: one abstract + one representational per year, all artists different, dealt out of place",
+              bad == [], bad)
+        before = page.evaluate("state.abstract.slice()")
+        a = page.locator('.sy-cell[data-col="abstract"][data-row="0"] .sy-card').bounding_box()
+        t = page.locator('.sy-cell[data-col="abstract"][data-row="3"]').bounding_box()
+        page.mouse.move(a["x"] + 30, a["y"] + 30); page.mouse.down()
+        page.mouse.move(t["x"] + 30, t["y"] + 30, steps=10); page.mouse.up()
+        after = page.evaluate("state.abstract.slice()")
+        check("dragging a painting onto another row swaps the two",
+              after[3] == before[0] and after[0] == before[3], f"{before} -> {after}")
+        before_r = page.evaluate("state.representational.slice()")
+        a = page.locator('.sy-cell[data-col="abstract"][data-row="1"] .sy-card').bounding_box()
+        t = page.locator('.sy-cell[data-col="representational"][data-row="2"]').bounding_box()
+        page.mouse.move(a["x"] + 30, a["y"] + 30); page.mouse.down()
+        page.mouse.move(t["x"] + 30, t["y"] + 30, steps=10); page.mouse.up()
+        check("an abstract painting can't be dropped in the representational column",
+              page.evaluate("state.abstract.slice()") == after
+              and page.evaluate("state.representational.slice()") == before_r)
+        top = page.evaluate("state.abstract[0]")
+        page.focus(f'.sy-card[data-id="{top}"]'); page.keyboard.press("ArrowDown")
+        check("ArrowDown moves a focused painting down a row", page.evaluate("state.abstract[1]") == top)
+        page.evaluate("""() => { for (const c of COLS) state[c] = state.rows.map(r => r[c].id); render(); }""")
+        page.click("#btn-sy-submit")
+        check("a solved board scores 10 of 10", "10 of 10" in page.inner_text("#sy-result"),
+              page.inner_text("#sy-result"))
+        check("every cell is marked right", page.locator(".sy-cell.ok").count() == 10)
+        check("the answers show year, title and artist", page.locator(".sy-info").count() == 10)
+        page.click("#btn-sy-next")
+        page.wait_for_selector("#sy-board:not(.is-loading) .sy-card", timeout=30000)
+        check("New round deals a fresh, unanswered board",
+              page.locator(".sy-cell.ok, .sy-cell.no").count() == 0 and page.is_visible("#btn-sy-submit"))
+
+        print("\n== Close Up ==")
+        page.goto(url + "closeup.html")
+        page.wait_for_selector("#cu-board:not(.is-loading) .cu-view canvas", timeout=30000)
+        ids = page.evaluate("state.works.map(w => w.id)")
+        check("four paintings by four artists",
+              len(ids) == 4 and page.evaluate("new Set(state.works.map(w => w.artist)).size") == 4)
+        check("the click ladder runs 8x4 down to the whole painting",
+              page.evaluate("JSON.stringify(LEVELS)") ==
+              "[[8,4],[6,4],[4,4],[4,3],[3,3],[3,2],[2,2],[2,1],[1,1]]" and page.evaluate("MAX_SCORE") == 32)
+        grids = page.evaluate("""state.works.map(w => { const i = state.imgs.get(w.id), g = grid(w.id, 0);
+            return i.naturalHeight > i.naturalWidth ? (g.rows === 8 && g.cols === 4) : (g.rows === 4 && g.cols === 8); })""")
+        check("portrait paintings start as 8 rows x 4 columns, landscape as 4 x 8", all(grids), grids)
+        check("the first section comes from the busier half of the grid",
+              page.evaluate("""state.works.every(w => { const g = grid(w.id, 0), a = state.anchor[w.id];
+                  const busy = busyCells(state.imgs.get(w.id), g.rows, g.cols);
+                  return busy.length === g.rows * g.cols / 2 &&
+                         busy.some(c => Math.abs((c.c + 0.5) / g.cols - a.x) < 1e-9 && Math.abs((c.r + 0.5) / g.rows - a.y) < 1e-9); })"""))
+        first = ids[0]
+        areas = []
+        for _ in range(10):
+            areas.append(page.evaluate(f"(() => {{ const r = region('{first}'); return r.w * r.h; }})()"))
+            page.click(f'.cu-view[data-id="{first}"]')
+        check("each click shows a bigger section, ending at the whole painting",
+              all(b > a for a, b in zip(areas, areas[1:9])) and abs(areas[8] - 1) < 1e-9,
+              [round(x, 3) for x in areas])
+        check("clicks past the whole painting cost nothing",
+              page.evaluate(f"state.level['{first}']") == 8
+              and "Whole painting" in page.inner_text(f'.cu-view[data-id="{first}"]'))
+        check("bigger sections stay centred on the first one",
+              page.evaluate(f"""(() => {{ const a = state.anchor['{first}'];
+                  for (let l = 0; l <= STEPS; l++) {{ state.level['{first}'] = l; const r = region('{first}');
+                    if (a.x < r.x - 1e-9 || a.x > r.x + r.w + 1e-9 || a.y < r.y - 1e-9 || a.y > r.y + r.h + 1e-9) return false; }}
+                  state.level['{first}'] = 8; return true; }})()"""))
+        check("the status line counts the cost", "8 clicks" in page.inner_text("#cu-status"),
+              page.inner_text("#cu-status"))
+        check("Submit waits for all four labels", page.is_disabled("#btn-cu-submit"))
+        l = page.locator(f'#cu-tray .cu-label[data-label="{ids[1]}"]').bounding_box()
+        t = page.locator(f'.cu-slot[data-slot="{ids[1]}"]').bounding_box()
+        page.mouse.move(l["x"] + 20, l["y"] + 20); page.mouse.down()
+        page.mouse.move(t["x"] + 20, t["y"] + 20, steps=10); page.mouse.up()
+        check("dragging a label onto a painting places it",
+              page.evaluate(f"state.place['{ids[1]}']") == ids[1] and page.evaluate("state.selected") is None)
+        page.click(f'.cu-label[data-label="{ids[0]}"]')
+        page.click(f'.cu-slot[data-slot="{ids[1]}"]')
+        check("placing a label on an occupied painting sends the old one back",
+              page.evaluate(f"state.place['{ids[1]}']") == ids[0]
+              and page.locator(f'#cu-tray .cu-label[data-label="{ids[1]}"]').count() == 1)
+        for lab, slot in [(ids[1], ids[1]), (ids[0], ids[0]), (ids[2], ids[3]), (ids[3], ids[2])]:
+            page.click(f'.cu-label[data-label="{lab}"]'); page.click(f'.cu-slot[data-slot="{slot}"]')
+        page.click("#btn-cu-submit")
+        # ids[0] took 8 clicks (0 left), ids[1] none (8); ids[2] and ids[3] are swapped (0 each)
+        scored = page.evaluate("state.scored")
+        check("score: a right label keeps 8 less its clicks, a wrong one scores 0",
+              scored == {ids[0]: 0, ids[1]: 8, ids[2]: 0, ids[3]: 0}
+              and page.inner_text(".cu-score").split("/")[0].strip() == "8", scored)
+        check("after submitting, every painting is shown whole",
+              page.locator(".cu-shown", has_text="Whole painting").count() == 4)
+        check("a wrong label names the right answer", page.locator(".cu-verdict.no").count() == 2)
+        page.click("#btn-cu-next")
+        page.wait_for_selector("#cu-board:not(.is-loading) .cu-view canvas", timeout=30000)
+        page.evaluate("""() => { for (const w of state.works) state.place[w.id] = w.id; render(); }""")
+        page.click("#btn-cu-submit")
+        check("all four right without a click scores the perfect 32",
+              page.inner_text(".cu-score").split("/")[0].strip() == "32", page.inner_text(".cu-score"))
+
         print("\n== images actually load from moma.org ==")
+        page.goto(url); page.click("#btn-start"); ready(page)
         page.wait_for_timeout(2000)
         ok = page.evaluate("""() => Array.from(document.querySelectorAll('.card img'))
               .map(i => i.complete && i.naturalWidth > 0)""")

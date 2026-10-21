@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Close Up — Name MoMA Paintings from a Small Detail</title>
+<meta name="description" content="Four MoMA paintings, each shown as one small section. Match each to its title, artist and year, seeing as little as you can.">
+<link rel="stylesheet" href="style.css">
+<script data-goatcounter="https://cshirky-gh.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+<nav class="game-nav" aria-label="Games">
+  <a href="./">Chronology</a>
+  <a href="sameyear.html">Same Year</a>
+  <a href="closeup.html" aria-current="page">Close Up</a>
+</nav>
+
+<header class="app-header">
+  <h1>Close Up</h1>
+  <p class="subtitle">Name the painting from as little of it as you can</p>
+</header>
+
+<section class="screen">
+  <p class="intro">Drag each label onto the painting it belongs to. You see only a small
+  section of each one. Click a painting to see more of it, but every click costs a point.</p>
+
+  <div class="cu-board" id="cu-board">
+    <p class="cu-status muted" id="cu-status" aria-live="polite"></p>
+    <div class="cu-paintings" id="cu-paintings"></div>
+    <div class="cu-tray" id="cu-tray" aria-label="Labels"></div>
+  </div>
+
+  <div class="actions">
+    <p class="verdict cu-result" id="cu-result" role="status" aria-live="polite" hidden></p>
+    <button class="btn btn-primary btn-lg" id="btn-cu-submit" disabled>Submit</button>
+    <button class="btn btn-primary btn-lg" id="btn-cu-next" hidden>New round</button>
+  </div>
+</section>
+
+<footer class="app-footer">
+  <p>Images and data from <a href="https://github.com/MuseumofModernArt/collection" target="_blank" rel="noopener">The Museum of Modern Art&rsquo;s public collection dataset</a>.</p>
+  <p>Paintings shown are on view at MoMA as of the most recent data refresh.</p>
+</footer>
+
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script src="closeup.js"></script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Same Year — Match Abstract and Representational Paintings from MoMA</title>
+<meta name="description" content="Pairs of MoMA paintings made in the same year, one abstract and one representational. Put each beside its year.">
+<link rel="stylesheet" href="style.css">
+<script data-goatcounter="https://cshirky-gh.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+<nav class="game-nav" aria-label="Games">
+  <a href="./">Chronology</a>
+  <a href="sameyear.html" aria-current="page">Same Year</a>
+  <a href="closeup.html">Close Up</a>
+</nav>
+
+<header class="app-header">
+  <h1>Same Year</h1>
+  <p class="subtitle">Abstract and representational paintings, made in the same year</p>
+</header>
+
+<section class="screen">
+  <p class="intro">Each row is a year. One abstract and one representational painting
+  were made in each one. Drag each painting into its year&rsquo;s row.</p>
+
+  <div class="sy-board" id="sy-board" aria-label="Paintings by year"></div>
+
+  <div class="actions">
+    <p class="verdict sy-result" id="sy-result" role="status" aria-live="polite" hidden></p>
+    <button class="btn btn-primary btn-lg" id="btn-sy-submit">Submit</button>
+    <button class="btn btn-primary btn-lg" id="btn-sy-next" hidden>New round</button>
+  </div>
+</section>
+
+<footer class="app-footer">
+  <p>Images and data from <a href="https://github.com/MuseumofModernArt/collection" target="_blank" rel="noopener">The Museum of Modern Art&rsquo;s public collection dataset</a>.</p>
+  <p>Paintings shown are on view at MoMA as of the most recent data refresh.</p>
+</footer>
+
+<script src="data.js"></script>
+<script src="styles.js"></script>
+<script src="common.js"></script>
+<script src="sameyear.js"></script>
+</body>
+</html>

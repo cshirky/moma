@@ -311,14 +311,29 @@ function onBoardKey(ev) {
 
 /* ------------------------------------------------------------- lightbox */
 
+// The enlarged painting fills 95% of the screen's width or height, whichever
+// keeps all of it in view. Zoom scales that fitted size up to LB_MAX_ZOOM and
+// pan slides it; both live in one transform. MoMA's images are at most 1024px,
+// so zoom magnifies what is there rather than fetching anything finer.
+const LB_FILL = 0.95;
+const LB_MAX_ZOOM = 6;
+const LB_STEP = 1.6;          // the +/- buttons and keys
+const LB_TAP_ZOOM = 2.5;      // clicking the painting zooms in to this
+const lb = { scale: 1, x: 0, y: 0, w: 0, h: 0, pointers: new Map(), gesture: null, downOnImage: false };
+
 function openLightbox(id) {
   const work = state.works.find((w) => w.id === id);
   if (!work) return;
   const box = el('lightbox');
-  el('lightbox-img').src = work.image;
+  const img = el('lightbox-img');
+  lb.scale = 1; lb.x = 0; lb.y = 0;
+  box.classList.add('is-loading');
+  img.onload = () => { box.classList.remove('is-loading'); fitLightbox(); };
+  img.src = work.image;
+  const hint = '<span class="lb-hint">Click the painting to zoom in, scroll or pinch to zoom, drag to look around</span>';
   // Before the stage is answered the caption would give the game away, so
   // the enlarged view stays deliberately anonymous until then.
-  el('lightbox-caption').innerHTML = state.locked
+  el('lightbox-caption').innerHTML = (state.locked
     ? `<span class="lb-year">${work.year}</span>` +
       `<span class="lb-title">${escapeHtml(work.title)}</span>` +
       `<span class="lb-artist">${escapeHtml(work.artist)}` +
@@ -327,14 +342,138 @@ function openLightbox(id) {
       (work.medium ? `<span class="lb-medium">${escapeHtml(work.medium)}</span>` : '') +
       (work.gallery ? `<span class="lb-where">${escapeHtml(work.gallery)}</span>` : '') +
       (work.url ? `<a class="lb-link" href="${escapeHtml(work.url)}" target="_blank" rel="noopener">View at moma.org</a>` : '')
-    : '<span class="lb-hidden">Title and date hidden until you submit</span>';
+    : '<span class="lb-hidden">Title and date hidden until you submit</span>') + hint;
   box.hidden = false;
+  setZoom(1, 0, 0);
   el('lightbox-close').focus();
 }
 
 function closeLightbox() {
-  el('lightbox').hidden = true;
+  const box = el('lightbox');
+  box.hidden = true;
+  box.classList.remove('is-panning', 'is-zoomed');
+  el('lightbox-img').onload = null;
   el('lightbox-img').removeAttribute('src');
+  lb.pointers.clear();
+  lb.gesture = null;
+}
+
+/* Size the image so all of it fits at 95% of the limiting dimension. Runs on
+   load and on resize; the current zoom and pan are kept, re-clamped. */
+function fitLightbox() {
+  const box = el('lightbox');
+  const img = el('lightbox-img');
+  if (box.hidden || !img.naturalWidth) return;
+  const k = Math.min(LB_FILL * box.clientWidth / img.naturalWidth,
+                     LB_FILL * box.clientHeight / img.naturalHeight);
+  lb.w = img.naturalWidth * k;
+  lb.h = img.naturalHeight * k;
+  img.style.width = `${lb.w}px`;
+  img.style.height = `${lb.h}px`;
+  setZoom(lb.scale, lb.x, lb.y);
+}
+
+const clampZoom = (s) => Math.min(LB_MAX_ZOOM, Math.max(1, s));
+
+/* Apply a zoom and pan. Pan is clamped so a zoomed painting can't be dragged
+   away from the edges of the screen, and stays centred while it still fits. */
+function setZoom(scale, x, y, animate = false) {
+  const box = el('lightbox');
+  lb.scale = clampZoom(scale);
+  const maxX = Math.max(0, (lb.w * lb.scale - box.clientWidth) / 2);
+  const maxY = Math.max(0, (lb.h * lb.scale - box.clientHeight) / 2);
+  lb.x = Math.min(maxX, Math.max(-maxX, x));
+  lb.y = Math.min(maxY, Math.max(-maxY, y));
+  box.classList.toggle('is-animating', animate);
+  box.classList.toggle('is-zoomed', lb.scale > 1.001);
+  el('lightbox-img').style.transform = `translate(${lb.x}px, ${lb.y}px) scale(${lb.scale})`;
+  el('lb-zoom-out').disabled = lb.scale <= 1.001;
+  el('lb-zoom-in').disabled = lb.scale >= LB_MAX_ZOOM - 0.001;
+}
+
+/* Zoom to `scale`, keeping the point of the painting under (px, py) still. */
+function zoomAt(scale, px, py, animate = false) {
+  const box = el('lightbox');
+  const cx = box.clientWidth / 2, cy = box.clientHeight / 2;
+  if (px === undefined) { px = cx; py = cy; }
+  const next = clampZoom(scale);
+  const r = next / lb.scale;
+  setZoom(next, (px - cx) - r * (px - cx - lb.x), (py - cy) - r * (py - cy - lb.y), animate);
+}
+
+/* Snapshot for a gesture: where the pointers are, and the zoom they started
+   from. Retaken whenever a finger lands or lifts, so pinch hands over to pan
+   without a jump. */
+function lbGesture(moved = false) {
+  const pts = [...lb.pointers.values()];
+  const mid = {
+    x: pts.reduce((t, p) => t + p.x, 0) / pts.length,
+    y: pts.reduce((t, p) => t + p.y, 0) / pts.length,
+  };
+  const dist = pts.length > 1 ? Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) : 0;
+  return { mid, dist, scale: lb.scale, x: lb.x, y: lb.y, moved };
+}
+
+function onLbPointerDown(ev) {
+  lb.downOnImage = ev.target === el('lightbox-img');
+  if (!lb.downOnImage) return;
+  ev.preventDefault();
+  ev.target.setPointerCapture(ev.pointerId);
+  lb.pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  lb.gesture = lbGesture(lb.pointers.size > 1);
+}
+
+function onLbPointerMove(ev) {
+  if (!lb.pointers.has(ev.pointerId)) return;
+  lb.pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  const g = lb.gesture;
+  const now = lbGesture();
+  if (!g.moved && Math.hypot(now.mid.x - g.mid.x, now.mid.y - g.mid.y) < 6) return;
+  g.moved = true;
+  const box = el('lightbox');
+  if (g.dist && now.dist) {
+    // Pinch: scale by the change in finger spread, about the fingers' midpoint.
+    const cx = box.clientWidth / 2, cy = box.clientHeight / 2;
+    const next = clampZoom(g.scale * now.dist / g.dist);
+    const r = next / g.scale;
+    setZoom(next, (now.mid.x - cx) - r * (g.mid.x - cx - g.x), (now.mid.y - cy) - r * (g.mid.y - cy - g.y));
+  } else if (lb.scale > 1.001) {
+    box.classList.add('is-panning');
+    setZoom(lb.scale, g.x + now.mid.x - g.mid.x, g.y + now.mid.y - g.mid.y);
+  }
+}
+
+function onLbPointerUp(ev) {
+  if (!lb.pointers.has(ev.pointerId)) return;
+  lb.pointers.delete(ev.pointerId);
+  const g = lb.gesture;
+  if (lb.pointers.size) { lb.gesture = lbGesture(true); return; }
+  lb.gesture = null;
+  el('lightbox').classList.remove('is-panning');
+  // A click that didn't travel zooms in on that spot, or back out to fit.
+  if (ev.type === 'pointerup' && !g.moved) {
+    if (lb.scale > 1.001) setZoom(1, 0, 0, true);
+    else zoomAt(LB_TAP_ZOOM, ev.clientX, ev.clientY, true);
+  }
+}
+
+function onLbKey(ev) {
+  if (ev.key === 'Escape') { closeLightbox(); return; }
+  if (ev.target.closest('a')) return;
+  const pan = 80;
+  const moves = {
+    '+': () => zoomAt(lb.scale * LB_STEP, undefined, undefined, true),
+    '=': () => zoomAt(lb.scale * LB_STEP, undefined, undefined, true),
+    '-': () => zoomAt(lb.scale / LB_STEP, undefined, undefined, true),
+    '0': () => setZoom(1, 0, 0, true),
+    ArrowLeft: () => setZoom(lb.scale, lb.x + pan, lb.y, true),
+    ArrowRight: () => setZoom(lb.scale, lb.x - pan, lb.y, true),
+    ArrowUp: () => setZoom(lb.scale, lb.x, lb.y + pan, true),
+    ArrowDown: () => setZoom(lb.scale, lb.x, lb.y - pan, true),
+  };
+  if (!moves[ev.key]) return;
+  ev.preventDefault();
+  moves[ev.key]();
 }
 
 /* ------------------------------------------------------------ stage set-up */
@@ -763,13 +902,32 @@ function init() {
   play.addEventListener('pointerdown', onPointerDown);
   play.addEventListener('keydown', onBoardKey);
 
+  const box = el('lightbox');
   el('lightbox-close').addEventListener('click', closeLightbox);
-  // Any click anywhere dismisses it — the painting, the caption, the backdrop.
-  // A link inside the caption still follows (it opens in a new tab), so
-  // closing underneath it costs nothing.
-  el('lightbox').addEventListener('click', closeLightbox);
+  el('lb-zoom-in').addEventListener('click', () => zoomAt(lb.scale * LB_STEP, undefined, undefined, true));
+  el('lb-zoom-out').addEventListener('click', () => zoomAt(lb.scale / LB_STEP, undefined, undefined, true));
+  // The painting zooms and pans; a click anywhere else dismisses — the
+  // backdrop, the caption. A link inside the caption still follows (it opens
+  // in a new tab), so closing underneath it costs nothing.
+  box.addEventListener('click', (ev) => {
+    if (lb.downOnImage || ev.target.closest('#lb-zoom-in, #lb-zoom-out')) {
+      lb.downOnImage = false;
+      return;
+    }
+    closeLightbox();
+  });
+  box.addEventListener('pointerdown', onLbPointerDown);
+  box.addEventListener('pointermove', onLbPointerMove);
+  box.addEventListener('pointerup', onLbPointerUp);
+  box.addEventListener('pointercancel', onLbPointerUp);
+  box.addEventListener('wheel', (ev) => {
+    ev.preventDefault();
+    const dy = ev.deltaY * (ev.deltaMode === 1 ? 16 : 1);
+    zoomAt(lb.scale * Math.exp(-dy * 0.0015), ev.clientX, ev.clientY);
+  }, { passive: false });
+  window.addEventListener('resize', fitLightbox);
   document.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Escape' && !el('lightbox').hidden) closeLightbox();
+    if (!box.hidden) onLbKey(ev);
   });
 }
 

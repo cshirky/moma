@@ -7,6 +7,10 @@ is pure reordering — there is no tray or staging area. Five stages, each
 harder than the last. Served straight from `docs/`, no build step — plain
 `<script>` tags load everything.
 
+Two more games sit beside it, linked from a menu across the top of every
+page: **Same Year** (`sameyear.html`) and **Close Up** (`closeup.html`). See
+"The other games" below.
+
 Sibling project to `../museum_flashcards` (Studio Museum in Harlem); the
 palette and the "generated data as a `.js` file" pattern come from there.
 
@@ -51,6 +55,13 @@ Two things about this machine that are invisible until they bite:
 - `docs/data.js` — generated. `const PAINTINGS = [...]`. Mirrored in
   pretty-printed form at `data/paintings.json` for inspection and diffing.
   Don't hand-edit either; regenerate with `fetch_data.py`.
+- `docs/sameyear.html` + `sameyear.js`, `docs/closeup.html` + `closeup.js`
+  — the two newer games, one page each.
+- `docs/common.js` — helpers and the pointer-drag routine shared by the two
+  newer games. Never load it on `index.html`: `app.js` predates it, keeps
+  its own copies, and the names would collide.
+- `docs/styles.js` — `const STYLES = {id: "abstract" | "representational"}`,
+  **hand-made**, unlike `data.js`. See "The other games".
 - `fetch_data.py` — the pipeline. Downloads MoMA's public collection CSVs,
   filters to the playable pool, and writes both data files.
 - `test_game.py` — end-to-end Playwright test. Run it after any change to
@@ -232,8 +243,11 @@ scorecard says "answer shown".
 Each input has exactly one meaning, so nothing competes:
 
 - **drag** a painting — reorders, funnelled through `moveTo()`
-- **click** a painting — opens it larger in the lightbox; any click inside
-  the lightbox dismisses it again, including on the painting and the caption
+- **click** a painting — opens it larger in the lightbox
+- **in the lightbox**, the painting zooms and pans: click it to zoom in on
+  that spot (or back out), scroll or pinch to zoom, drag to pan, `+`/`-`/`0`
+  and arrow keys too. Any click *off* the painting — backdrop, caption —
+  dismisses it, as does Escape
 - **arrow keys** on a focused painting — moves it one place up or down
 - **Enter/Space** on a focused painting — opens the lightbox
 
@@ -247,6 +261,13 @@ therefore **always visible**, not revealed on hover: a hover-only cue never
 appears on a touch screen at all, and on a desktop it made the feature look
 like a rollover.
 
+The enlarged painting is sized in `fitLightbox()` to 95% of the screen's
+width or height, whichever keeps all of it in view, so the caption and the
+zoom/close buttons float over it; the caption fades out while zoomed. MoMA's
+images are at most 1024px and their URLs are signed (asking for a bigger
+size returns 400), so zoom magnifies the pixels there are — it can't fetch
+finer detail.
+
 The lightbox deliberately shows **no caption before the stage is submitted** —
 the title and date are the answer. After submitting it shows the full record
 and a link to moma.org. Dragging is disabled once a stage is answered, but
@@ -259,3 +280,60 @@ row's *height*, so extra row width is dead space — row width is derived from
 the picture. And `[hidden] { display: none !important; }` is load-bearing: the
 lightbox sets `display: flex`, which otherwise beats the `hidden` attribute and
 leaves an invisible overlay swallowing every click on the page.
+
+## The other games
+
+The menu (`.game-nav`) is plain HTML repeated in each page's markup, with
+`aria-current="page"` on the current game. Adding a game means adding a link
+to all three.
+
+### Same Year
+
+Five rows, one per year, newest at the top like Chronology. Each year has
+one abstract and one representational painting; each column is dealt so no
+painting starts in its own row, and the player drags paintings within a
+column to line them up with the years. Dropping on another row **swaps** the
+two (not insert-and-shift as in Chronology), because the rows are fixed
+slots. Abstract paintings can't cross into the representational column.
+Scored as paintings in the right row, out of 10.
+
+The abstract/representational split comes from `docs/styles.js`, labelled
+by eye from contact sheets of every painting: 96 abstract, 85
+representational, and 95 left out on purpose because they sit between the
+two (analytic cubism, futurism, much surrealism, text paintings, a few
+objects). Only unambiguous pairs reach the game. That leaves 27 years with
+at least one pair, and `test_game.py` requires at least 15. **A data
+refresh doesn't update the labels**: new paintings are simply left out until
+someone labels them, and paintings that rotate off view drop out of pairs.
+Re-check the year count after `fetch_data.py --refresh`.
+
+While labelling, a few records turned out not to be paintings at all — an
+installation view, a gallery photo with escalators, a box. They're
+unlabelled, so Same Year never shows them, but Chronology and Close Up can.
+
+### Close Up
+
+Four paintings by four artists, each showing only one section, and four
+labels (title, artist, year) to drag onto them. A press with no travel picks
+a label up and a second click puts it down, which gives keyboard and touch
+users a path that isn't dragging.
+
+Clicking a painting coarsens its grid and costs a point:
+`LEVELS = 8x4, 6x4, 4x4, 4x3, 3x3, 3x2, 2x2, 2x1, whole`, written as
+[long side, short side], so a portrait painting starts as 8 rows by 4
+columns and a landscape one as 4 by 8. Each bigger section is centred on the
+first one, clamped to the edges, rather than snapped to the new grid, so a
+click always widens the same view.
+
+**Scoring**: each painting is worth 8, one per click it could still take; a
+right label keeps what's left, a wrong label scores 0. The maximum is 32:
+all four right from the first section.
+
+The first section is drawn from the busier half of the grid (`busyCells()`,
+summed neighbour-pixel differences), so it's never a patch of bare canvas.
+That reads pixels back from a canvas, which works only because moma.org
+sends `Access-Control-Allow-Origin: *`; the images are loaded with
+`crossOrigin = "anonymous"` for it. If that header ever goes away, the
+first section falls back to any cell. Very long, thin paintings (aspect
+over 2.5) are left out, since their sections are too slender to read.
+
