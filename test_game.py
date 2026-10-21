@@ -201,8 +201,8 @@ def main():
               page.inner_text("#score-band"))
         for sc, want in [(20,"Perfect"), (19,"Excellent"), (18,"Excellent"),
                          (17,"Very Good"), (16,"Very Good"), (15,"Good"), (14,"Good"),
-                         (13,"OK"), (12,"OK"), (11,"Better than Random"),
-                         (9,"Better than Random"), (8,"Worse than Random"),
+                         (13,"OK"), (12,"OK"), (11,"Nearly Random"),
+                         (9,"Nearly Random"), (8,"Worse than Random"),
                          (0,"Worse than Random")]:
             got = page.evaluate("(s)=>BANDS.find(b=>s>=b.min).label", sc)
             check(f"score {sc} -> {want}", got == want, got)

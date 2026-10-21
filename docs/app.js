@@ -39,17 +39,16 @@ const MAX_SCORE = STAGES.reduce((t, s) => t + s.n - 1, 0);
  * three stages solved outright, since three imperfect stages cost at least
  * three moves between them. Verified exhaustively over every move-split.
  *
- * Caution on the bottom two: measured random play averages 8.8 of 20 (median
- * 9), so the "Better than Random" floor of 9 sits right on the random median
- * and 57% of random runs clear it. Raising that floor to 12 would make the
- * label true — only 4.4% of random runs reach 12. */
+ * The 9 floor sits on the random median: random play averages 8.8 of 20
+ * (median 9), so 57% of random runs reach it, hence "Nearly Random". Only
+ * 4.4% of random runs reach 12, so OK and above means better than guessing. */
 const BANDS = [
   { min: 20, label: 'Perfect' },
   { min: 18, label: 'Excellent' },
   { min: 16, label: 'Very Good' },
   { min: 14, label: 'Good' },
   { min: 12, label: 'OK' },
-  { min: 9,  label: 'Better than Random' },
+  { min: 9,  label: 'Nearly Random' },
   { min: 0,  label: 'Worse than Random' }
 ];
 

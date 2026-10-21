@@ -153,7 +153,7 @@ exactly backwards. Score is `20 - total moves`, banded in `BANDS`.
 | 17–16 | Very Good |
 | 15–14 | Good |
 | 13–12 | OK |
-| 11–9 | Better than Random |
+| 11–9 | Nearly Random |
 | 8 and below | Worse than Random |
 
 **18 is a real threshold, not a round number.** Scoring 18 or more is only
@@ -161,12 +161,12 @@ reachable with at least three stages solved outright, because three imperfect
 stages cost at least three moves between them. `test_game.py` proves this by
 walking every possible move-split rather than trusting the argument.
 
-**The bottom two bands are miscalibrated, knowingly.** Measured random play
-averages **8.8 of 20**, median 9 over 200,000 simulated runs, so the "Better
-than Random" floor of 9 sits on the random median: 57% of random runs clear
-it and get told they beat chance. Raising that floor to 12 would make the
-label true — only 4.4% of random runs reach 12. Left at 9 as specified; the
-number is a one-line change in `BANDS`.
+**The 9 floor sits on the random median, which is why it's "Nearly Random".**
+Measured random play averages **8.8 of 20**, median 9 over 200,000 simulated
+runs, so 57% of random runs land in that band or above. It was once labelled
+"Better than Random", which told those runs they'd beaten chance; the label
+was changed rather than the floor. Only 4.4% of random runs reach 12, so OK
+and above genuinely means better than guessing.
 
 **Pairwise counts are computed but never shown.** `pairScore()` still runs
 and its numbers are stored on each result, but n-squared pair maths doesn't
