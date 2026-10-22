@@ -289,7 +289,9 @@ to all three.
 
 ### Same Year
 
-Five rows, one per year, newest at the top like Chronology. Each year has
+Five rows, one per year, newest at the top like Chronology. The years are
+at least `MIN_GAP` (5) apart, so neighbouring rows aren't a coin toss. Each
+year has
 one abstract and one representational painting; each column is dealt so no
 painting starts in its own row, and the player drags paintings within a
 column to line them up with the years. Dropping on another row **swaps** the
@@ -324,6 +326,13 @@ Clicking a painting coarsens its grid and costs a point:
 columns and a landscape one as 4 by 8. Each bigger section is centred on the
 first one, clamped to the edges, rather than snapped to the new grid, so a
 click always widens the same view.
+
+A small white rectangle in the painting's proportions sits in the corner of
+each view (`mapHtml()`), with the section on view marked in it, so the
+player knows where on the canvas they are looking. It goes once the
+painting is whole. After Submit, each painting is drawn whole with a white
+box round the last section the player saw (none if they had already
+clicked through to the whole).
 
 **Scoring**: each painting is worth 8, one per click it could still take; a
 right label keeps what's left, a wrong label scores 0. The maximum is 32:

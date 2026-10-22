@@ -7,6 +7,10 @@
 
 const ROWS = 5;
 
+/* The years in a round are at least this far apart, so neighbouring rows
+   aren't a coin toss. */
+const MIN_GAP = 5;
+
 /* Years that have at least one painting of each kind, from STYLES. */
 const BY_YEAR = (() => {
   const by = new Map();
@@ -30,24 +34,24 @@ const state = {
 const COLS = ['abstract', 'representational'];
 const workById = (id) => PAINTINGS.find((w) => w.id === id);
 
-/* Choose ROWS years and one painting of each kind per year, with all
-   2 x ROWS artists different so no painter gives two rows away. */
+/* Choose ROWS years at least MIN_GAP apart, and one painting of each kind
+   per year, with all 2 x ROWS artists different so no painter gives two rows
+   away. A year whose paintings are all by artists already used is skipped. */
 function drawRound() {
   for (let attempt = 0; attempt < 200; attempt++) {
-    const years = shuffle([...BY_YEAR.keys()]).slice(0, ROWS);
     const artists = new Set();
     const rows = [];
-    for (const year of years) {
+    for (const year of shuffle([...BY_YEAR.keys()])) {
+      if (rows.some((r) => Math.abs(r.year - year) < MIN_GAP)) continue;
       const v = BY_YEAR.get(year);
       const a = shuffle(v.abstract).find((w) => !artists.has(w.artist));
-      if (!a) break;
+      const r = a && shuffle(v.representational).find((w) => !artists.has(w.artist) && w.artist !== a.artist);
+      if (!r) continue;
       artists.add(a.artist);
-      const r = shuffle(v.representational).find((w) => !artists.has(w.artist));
-      if (!r) break;
       artists.add(r.artist);
       rows.push({ year, abstract: a, representational: r });
+      if (rows.length === ROWS) return rows.sort((x, y) => y.year - x.year);
     }
-    if (rows.length === ROWS) return rows.sort((x, y) => y.year - x.year);
   }
   return null;
 }

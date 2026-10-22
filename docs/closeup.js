@@ -41,11 +41,11 @@ function grid(id, level) {
   return portrait ? { rows: long, cols: short } : { rows: short, cols: long };
 }
 
-/* The visible section at the painting's current level, as fractions of the
-   image. Each bigger section is centred on the first one, nudged inward
-   where it would run off the edge, so a click always widens the same view. */
-function region(id) {
-  const level = state.locked ? STEPS : state.level[id];
+/* The visible section at a level (by default the painting's current one), as
+   fractions of the image. Each bigger section is centred on the first one,
+   nudged inward where it would run off the edge, so a click always widens
+   the same view. */
+function region(id, level = state.locked ? STEPS : state.level[id]) {
   const { rows, cols } = grid(id, level);
   const w = 1 / cols, h = 1 / rows;
   const a = state.anchor[id];
@@ -54,6 +54,22 @@ function region(id) {
     y: Math.min(1 - h, Math.max(0, a.y - h / 2)),
     w, h,
   };
+}
+
+/* A small white rectangle in the painting's proportions, with the section
+   on view marked inside it, so the player knows where they are looking.
+   Hidden once the painting is shown whole. */
+const MAP_SIZE = 40;   // px along the long side
+
+function mapHtml(id) {
+  if (state.locked || state.level[id] >= STEPS) return '';
+  const img = state.imgs.get(id);
+  const k = MAP_SIZE / Math.max(img.naturalWidth, img.naturalHeight);
+  const r = region(id);
+  const pct = (v) => `${(v * 100).toFixed(2)}%`;
+  return `<span class="cu-map" aria-hidden="true" style="width:${Math.round(img.naturalWidth * k)}px;` +
+    `height:${Math.round(img.naturalHeight * k)}px"><span class="cu-map-box" style="left:${pct(r.x)};` +
+    `top:${pct(r.y)};width:${pct(r.w)};height:${pct(r.h)}"></span></span>`;
 }
 
 /* How much of the painting is showing, in words. */
@@ -174,7 +190,7 @@ function render() {
     return `<div class="cu-item">` +
       `<div class="cu-view" tabindex="0" data-id="${w.id}" ` +
       `aria-label="Painting ${i + 1}${state.locked ? '' : ': click to see more of it'}">` +
-      `<canvas></canvas><span class="cu-shown">${shownLabel(w.id)}</span></div>` +
+      `<canvas></canvas><span class="cu-shown">${shownLabel(w.id)}</span>${mapHtml(w.id)}</div>` +
       `<div class="cu-slot" data-slot="${w.id}" tabindex="${labelId ? -1 : 0}">${slot}</div>${after}</div>`;
   }).join('');
 
@@ -191,7 +207,8 @@ function render() {
 }
 
 /* Paint each painting's current section onto its canvas, fitted inside the
-   view box at the screen's pixel density. */
+   view box at the screen's pixel density. Once submitted, the whole painting
+   is drawn with a box round the last section the player was looking at. */
 function drawViews() {
   const dpr = window.devicePixelRatio || 1;
   document.querySelectorAll('.cu-view').forEach((view) => {
@@ -211,6 +228,19 @@ function drawViews() {
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, r.x * img.naturalWidth, r.y * img.naturalHeight, sw, sh,
                   0, 0, canvas.width, canvas.height);
+    if (state.locked && state.level[id] < STEPS) {
+      const last = region(id, state.level[id]);
+      const lw = 2 * dpr;
+      const bx = last.x * canvas.width, by = last.y * canvas.height;
+      const bw = last.w * canvas.width, bh = last.h * canvas.height;
+      // A dark line under a white one, so the box reads on light and dark paint.
+      ctx.lineWidth = lw * 2;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+      ctx.strokeRect(bx + lw, by + lw, bw - 2 * lw, bh - 2 * lw);
+      ctx.lineWidth = lw;
+      ctx.strokeStyle = '#fff';
+      ctx.strokeRect(bx + lw, by + lw, bw - 2 * lw, bh - 2 * lw);
+    }
   });
 }
 

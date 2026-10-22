@@ -422,6 +422,7 @@ def main():
               const years = rows.map(r => r.year);
               if (new Set(years).size !== ROWS) out.push('repeated year');
               if (years.some((y, j) => j && y > years[j-1])) out.push('not newest first');
+              if (years.some((y, j) => j && years[j-1] - y < MIN_GAP)) out.push('years too close');
               const artists = rows.flatMap(r => [r.abstract.artist, r.representational.artist]);
               if (new Set(artists).size !== ROWS * 2) out.push('repeated artist');
               for (const r of rows) {
@@ -433,8 +434,8 @@ def main():
               if (dealt.some((id, j) => id === ids[j])) out.push('dealt in place');
             }
             return [...new Set(out)]; }""")
-        check("500 draws: one abstract + one representational per year, all artists different, dealt out of place",
-              bad == [], bad)
+        check("500 draws: years 5+ apart, one abstract + one representational per year, all artists different, dealt out of place",
+              bad == [] and page.evaluate("MIN_GAP") == 5, bad)
         before = page.evaluate("state.abstract.slice()")
         a = page.locator('.sy-cell[data-col="abstract"][data-row="0"] .sy-card').bounding_box()
         t = page.locator('.sy-cell[data-col="abstract"][data-row="3"]').bounding_box()
@@ -482,6 +483,15 @@ def main():
                   const busy = busyCells(state.imgs.get(w.id), g.rows, g.cols);
                   return busy.length === g.rows * g.cols / 2 &&
                          busy.some(c => Math.abs((c.c + 0.5) / g.cols - a.x) < 1e-9 && Math.abs((c.r + 0.5) / g.rows - a.y) < 1e-9); })"""))
+        check("each painting has a locator map in its proportions, marking the section on view",
+              page.evaluate("""state.works.every(w => {
+                  const m = document.querySelector(`.cu-view[data-id="${w.id}"] .cu-map`);
+                  if (!m) return false;
+                  const i = state.imgs.get(w.id), b = m.firstElementChild, r = region(w.id);
+                  const close = (a, c, tol) => Math.abs(a - c) <= tol;
+                  return close(m.offsetWidth / m.offsetHeight, i.naturalWidth / i.naturalHeight, 0.1) &&
+                         close(b.offsetLeft / m.clientWidth, r.x, 0.06) && close(b.offsetTop / m.clientHeight, r.y, 0.06) &&
+                         close(b.offsetWidth / m.clientWidth, r.w, 0.06) && close(b.offsetHeight / m.clientHeight, r.h, 0.06); })"""))
         first = ids[0]
         areas = []
         for _ in range(10):
@@ -490,6 +500,9 @@ def main():
         check("each click shows a bigger section, ending at the whole painting",
               all(b > a for a, b in zip(areas, areas[1:9])) and abs(areas[8] - 1) < 1e-9,
               [round(x, 3) for x in areas])
+        check("the locator map goes once the painting is whole",
+              page.locator(f'.cu-view[data-id="{first}"] .cu-map').count() == 0
+              and page.locator(f'.cu-view[data-id="{ids[1]}"] .cu-map').count() == 1)
         check("clicks past the whole painting cost nothing",
               page.evaluate(f"state.level['{first}']") == 8
               and "Whole painting" in page.inner_text(f'.cu-view[data-id="{first}"]'))
@@ -523,6 +536,13 @@ def main():
         check("after submitting, every painting is shown whole",
               page.locator(".cu-shown", has_text="Whole painting").count() == 4)
         check("a wrong label names the right answer", page.locator(".cu-verdict.no").count() == 2)
+        check("the revealed paintings drop the locator map", page.locator(".cu-map").count() == 0)
+        box_px = page.evaluate(f"""(() => {{
+            const c = document.querySelector('.cu-view[data-id="{ids[1]}"] canvas');
+            const r = region('{ids[1]}', state.level['{ids[1]}']), lw = 2 * (window.devicePixelRatio || 1);
+            const x = Math.round(r.x * c.width + lw), y = Math.round((r.y + r.h / 2) * c.height);
+            return Array.from(c.getContext('2d').getImageData(x, y, 1, 1).data.slice(0, 3)); }})()""")
+        check("the reveal boxes the last section the player saw, in white", min(box_px) >= 240, box_px)
         page.click("#btn-cu-next")
         page.wait_for_selector("#cu-board:not(.is-loading) .cu-view canvas", timeout=30000)
         page.evaluate("""() => { for (const w of state.works) state.place[w.id] = w.id; render(); }""")

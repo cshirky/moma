@@ -736,6 +736,19 @@ body.is-dragging { cursor: grabbing; user-select: none; }
   background: rgba(13, 14, 17, 0.8);
   color: var(--text-dim);
 }
+.cu-map {
+  position: absolute;
+  right: 6px; top: 6px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(13, 14, 17, 0.8);
+  pointer-events: none;
+}
+.cu-map-box {
+  position: absolute;
+  min-width: 2px; min-height: 2px;
+  background: var(--accent);
+  outline: 1px solid #0d0e11;
+}
 .cu-slot {
   min-height: 78px;
   border: 1px dashed var(--border);
