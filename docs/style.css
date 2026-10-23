@@ -727,18 +727,11 @@ body.is-dragging { cursor: grabbing; user-select: none; }
 }
 .cu-board.is-locked .cu-view { cursor: default; }
 .cu-view canvas { display: block; }
-.cu-shown {
-  position: absolute;
-  left: 6px; bottom: 6px;
-  font-size: 0.7rem;
-  padding: 2px 7px;
-  border-radius: 6px;
-  background: rgba(13, 14, 17, 0.8);
-  color: var(--text-dim);
-}
+.cu-strip { height: 40px; display: flex; justify-content: center; align-items: center; gap: 10px; }
+.cu-board.is-locked .cu-strip { height: auto; }
+.cu-shown { font-size: 0.75rem; color: var(--text-dim); }
 .cu-map {
-  position: absolute;
-  right: 6px; top: 6px;
+  position: relative;
   background: #fff;
   box-shadow: 0 0 0 1px rgba(13, 14, 17, 0.8);
   pointer-events: none;

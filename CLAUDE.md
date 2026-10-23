@@ -327,8 +327,9 @@ columns and a landscape one as 4 by 8. Each bigger section is centred on the
 first one, clamped to the edges, rather than snapped to the new grid, so a
 click always widens the same view.
 
-A small white rectangle in the painting's proportions sits in the corner of
-each view (`mapHtml()`), with the section on view marked in it, so the
+A small white rectangle in the painting's proportions sits in a strip
+under each view (`mapHtml()`), beside the note saying how much is showing,
+so neither covers the painting, with the section on view marked in it, so the
 player knows where on the canvas they are looking. It goes once the
 painting is whole. After Submit, each painting is drawn whole with a white
 box round the last section the player saw (none if they had already

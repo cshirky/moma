@@ -485,7 +485,7 @@ def main():
                          busy.some(c => Math.abs((c.c + 0.5) / g.cols - a.x) < 1e-9 && Math.abs((c.r + 0.5) / g.rows - a.y) < 1e-9); })"""))
         check("each painting has a locator map in its proportions, marking the section on view",
               page.evaluate("""state.works.every(w => {
-                  const m = document.querySelector(`.cu-view[data-id="${w.id}"] .cu-map`);
+                  const m = document.querySelector(`.cu-strip[data-id="${w.id}"] .cu-map`);
                   if (!m) return false;
                   const i = state.imgs.get(w.id), b = m.firstElementChild, r = region(w.id);
                   const close = (a, c, tol) => Math.abs(a - c) <= tol;
@@ -500,12 +500,17 @@ def main():
         check("each click shows a bigger section, ending at the whole painting",
               all(b > a for a, b in zip(areas, areas[1:9])) and abs(areas[8] - 1) < 1e-9,
               [round(x, 3) for x in areas])
+        check("the locator map and the how-much-is-showing note sit under the painting, never over it",
+              page.evaluate("""state.works.every(w => {
+                  const v = document.querySelector(`.cu-view[data-id="${w.id}"]`).getBoundingClientRect();
+                  const m = document.querySelector(`.cu-strip[data-id="${w.id}"]`).getBoundingClientRect();
+                  return m.top >= v.bottom; })"""))
         check("the locator map goes once the painting is whole",
-              page.locator(f'.cu-view[data-id="{first}"] .cu-map').count() == 0
-              and page.locator(f'.cu-view[data-id="{ids[1]}"] .cu-map').count() == 1)
+              page.locator(f'.cu-strip[data-id="{first}"] .cu-map').count() == 0
+              and page.locator(f'.cu-strip[data-id="{ids[1]}"] .cu-map').count() == 1)
         check("clicks past the whole painting cost nothing",
               page.evaluate(f"state.level['{first}']") == 8
-              and "Whole painting" in page.inner_text(f'.cu-view[data-id="{first}"]'))
+              and "Whole painting" in page.inner_text(f'.cu-strip[data-id="{first}"]'))
         check("bigger sections stay centred on the first one",
               page.evaluate(f"""(() => {{ const a = state.anchor['{first}'];
                   for (let l = 0; l <= STEPS; l++) {{ state.level['{first}'] = l; const r = region('{first}');

@@ -58,7 +58,10 @@ function region(id, level = state.locked ? STEPS : state.level[id]) {
 
 /* A small white rectangle in the painting's proportions, with the section
    on view marked inside it, so the player knows where they are looking.
-   Hidden once the painting is shown whole. */
+   It sits in a strip under the painting, beside the words saying how much
+   is showing, so nothing covers the painting. The strip keeps its height
+   when the map goes (the painting is whole), so the label spaces stay level
+   across the row. */
 const MAP_SIZE = 40;   // px along the long side
 
 function mapHtml(id) {
@@ -190,7 +193,8 @@ function render() {
     return `<div class="cu-item">` +
       `<div class="cu-view" tabindex="0" data-id="${w.id}" ` +
       `aria-label="Painting ${i + 1}${state.locked ? '' : ': click to see more of it'}">` +
-      `<canvas></canvas><span class="cu-shown">${shownLabel(w.id)}</span>${mapHtml(w.id)}</div>` +
+      `<canvas></canvas></div>` +
+      `<div class="cu-strip" data-id="${w.id}">${mapHtml(w.id)}<span class="cu-shown">${shownLabel(w.id)}</span></div>` +
       `<div class="cu-slot" data-slot="${w.id}" tabindex="${labelId ? -1 : 0}">${slot}</div>${after}</div>`;
   }).join('');
 
