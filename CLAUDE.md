@@ -64,7 +64,7 @@ Two things about this machine that are invisible until they bite:
   **hand-made**, unlike `data.js`. See "The other games".
 - `fetch_data.py` — the pipeline. Downloads MoMA's public collection CSVs,
   filters to the playable pool, and writes both data files.
-- `moma_artists.md`, `moma_works.md` — generated, browsable Markdown tables
+- `NOTES/moma_artists.md`, `NOTES/moma_works.md` — generated, browsable Markdown tables
   of the *whole* collection (every constituent, every artwork), written by
   `fetch_data.py --artists` / `--works`. Not used by the games.
   `moma_works.md` is ~25 MB, too big for GitHub to render; read it raw.

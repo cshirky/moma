@@ -14,8 +14,8 @@ data/paintings.json for inspection and diffing.
 Usage:
     python3 fetch_data.py           # use cached CSVs in raw/ if present
     python3 fetch_data.py --refresh # re-download the CSVs first
-    python3 fetch_data.py --artists # also write moma_artists.md
-    python3 fetch_data.py --works   # also write moma_works.md
+    python3 fetch_data.py --artists # also write NOTES/moma_artists.md
+    python3 fetch_data.py --works   # also write NOTES/moma_works.md
 
 --artists and --works write browsable Markdown tables of the whole
 collection (every constituent, every artwork), not just the playable pool.
@@ -32,6 +32,7 @@ import urllib.request
 
 BASE = "https://media.githubusercontent.com/media/MuseumofModernArt/collection/main"
 HERE = os.path.dirname(os.path.abspath(__file__))
+NOTES = os.path.join(HERE, "NOTES")
 RAW = os.path.join(HERE, "raw")
 DATA = os.path.join(HERE, "data")
 DOCS = os.path.join(HERE, "docs")
@@ -174,7 +175,8 @@ def write_artists(artworks, artists):
         lines.append(f"| {md(a['DisplayName'])} | {md(a['Nationality'])} | "
                      f"{year_cell(a['BeginDate'])} | {year_cell(a['EndDate'])} | "
                      f"{md(a['Gender'])} | {works[cid] or ''} | {paintings[cid] or ''} |")
-    path = os.path.join(HERE, "moma_artists.md")
+    os.makedirs(NOTES, exist_ok=True)
+    path = os.path.join(NOTES, "moma_artists.md")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
     print(f"Wrote {path} ({len(rows):,} artists)")
@@ -208,7 +210,8 @@ def write_works(artworks):
         lines.append(f"| {md(r.get('Artist'))} | {title} | {md(r.get('Date'))} | "
                      f"{md(r.get('Classification'))} | {md(r.get('Department'))} | "
                      f"{md(r.get('OnView'))} | {md(r.get('AccessionNumber'))} |")
-    path = os.path.join(HERE, "moma_works.md")
+    os.makedirs(NOTES, exist_ok=True)
+    path = os.path.join(NOTES, "moma_works.md")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
     print(f"Wrote {path} ({len(rows):,} works)")
