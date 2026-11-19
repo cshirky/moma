@@ -2,6 +2,11 @@
    labels (title, artist, year) to drag onto them. Clicking a painting shows
    a bigger section of it and costs a point.
 
+   This file is also the engine for Pixelated (pixelated.js), which shares
+   the labels, the clicks and the scoring and differs only in how a painting
+   is drawn at each step. Everything that differs lives in a VIEW object:
+   CLOSE_UP below, or PIXELATED, which pixelated.js swaps in before init().
+
    Each painting is worth STEPS points, one per click it could still take
    before it is shown whole. A correctly labelled painting scores whatever is
    left; a wrong label scores nothing. So the perfect score, 4 x STEPS, is
@@ -13,8 +18,9 @@ const N = 4;
    cells along the short side]: a portrait painting starts as 8 rows by 4
    columns, a landscape one as 4 rows by 8. The last entry is the whole. */
 const LEVELS = [[8, 4], [6, 4], [4, 4], [4, 3], [3, 3], [3, 2], [2, 2], [2, 1], [1, 1]];
-const STEPS = LEVELS.length - 1;
-const MAX_SCORE = N * STEPS;
+
+// Set in init() from whichever VIEW the page uses.
+let STEPS, MAX_SCORE;
 
 /* Very long, thin paintings make sections too slender to read, so the pool
    leaves them out. */
@@ -23,8 +29,8 @@ const MAX_ASPECT = 2.5;
 const state = {
   works: [],        // the four, in board order
   imgs: new Map(),  // id -> loaded HTMLImageElement
-  level: {},        // id -> index into LEVELS
-  anchor: {},       // id -> {x, y}: centre of the first section, 0..1
+  level: {},        // id -> step, 0 (first view) .. STEPS (whole)
+  anchor: {},       // Close Up only: id -> {x, y}, centre of the first section, 0..1
   labels: [],       // label ids (= work ids), tray order
   place: {},        // painting id -> label id, or null
   selected: null,   // label picked up by click/keyboard rather than drag
@@ -148,9 +154,7 @@ async function newRound() {
   for (const w of works) {
     state.level[w.id] = 0;
     state.place[w.id] = null;
-    const { rows, cols } = grid(w.id, 0);
-    const cell = pick(busyCells(state.imgs.get(w.id), rows, cols));
-    state.anchor[w.id] = { x: (cell.c + 0.5) / cols, y: (cell.r + 0.5) / rows };
+    VIEW.prepare(w.id);
   }
   state.labels = shuffle(works.map((w) => w.id));
   state.selected = null;
@@ -194,7 +198,7 @@ function render() {
       `<div class="cu-view" tabindex="0" data-id="${w.id}" ` +
       `aria-label="Painting ${i + 1}${state.locked ? '' : ': click to see more of it'}">` +
       `<canvas></canvas></div>` +
-      `<div class="cu-strip" data-id="${w.id}">${mapHtml(w.id)}<span class="cu-shown">${shownLabel(w.id)}</span></div>` +
+      `<div class="cu-strip" data-id="${w.id}">${VIEW.map(w.id)}<span class="cu-shown">${VIEW.shown(w.id)}</span></div>` +
       `<div class="cu-slot" data-slot="${w.id}" tabindex="${labelId ? -1 : 0}">${slot}</div>${after}</div>`;
   }).join('');
 
@@ -210,16 +214,16 @@ function render() {
   drawViews();
 }
 
-/* Paint each painting's current section onto its canvas, fitted inside the
-   view box at the screen's pixel density. Once submitted, the whole painting
-   is drawn with a box round the last section the player was looking at. */
+/* Size each painting's canvas to fit its view box at the screen's pixel
+   density, in the proportions of whatever VIEW.frame says is showing, and
+   let the VIEW paint it. */
 function drawViews() {
   const dpr = window.devicePixelRatio || 1;
   document.querySelectorAll('.cu-view').forEach((view) => {
     const id = view.dataset.id;
     const img = state.imgs.get(id);
     const canvas = view.querySelector('canvas');
-    const r = region(id);
+    const r = VIEW.frame(id);
     const sw = r.w * img.naturalWidth, sh = r.h * img.naturalHeight;
     const box = view.getBoundingClientRect();
     const k = Math.min(box.width / sw, box.height / sh);
@@ -228,25 +232,202 @@ function drawViews() {
     canvas.style.height = `${ch}px`;
     canvas.width = Math.round(cw * dpr);
     canvas.height = Math.round(ch * dpr);
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, r.x * img.naturalWidth, r.y * img.naturalHeight, sw, sh,
-                  0, 0, canvas.width, canvas.height);
-    if (state.locked && state.level[id] < STEPS) {
-      const last = region(id, state.level[id]);
-      const lw = 2 * dpr;
-      const bx = last.x * canvas.width, by = last.y * canvas.height;
-      const bw = last.w * canvas.width, bh = last.h * canvas.height;
-      // A dark line under a white one, so the box reads on light and dark paint.
-      ctx.lineWidth = lw * 2;
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
-      ctx.strokeRect(bx + lw, by + lw, bw - 2 * lw, bh - 2 * lw);
-      ctx.lineWidth = lw;
-      ctx.strokeStyle = '#fff';
-      ctx.strokeRect(bx + lw, by + lw, bw - 2 * lw, bh - 2 * lw);
-    }
+    VIEW.paint(canvas, id, r);
   });
 }
+
+/* Close Up's painting: the current section, or once submitted the whole
+   painting with a box round the last section the player was looking at. */
+/* The first section is a random cell from the busier half of the grid, so
+   it is never a patch of bare canvas or frame. "Busy" is how much neighbouring
+   pixels differ, which favours edges and texture over smooth gradients. If
+   the pixels can't be read, any cell will do. */
+function busyCells(img, rows, cols) {
+  const all = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) all.push({ r, c, score: 0 });
+  const W = cols * 16, H = rows * 16;
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, W, H);
+    const px = ctx.getImageData(0, 0, W, H).data;
+    const lum = (x, y) => { const i = (y * W + x) * 4; return 0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2]; };
+    for (const cell of all) {
+      for (let y = cell.r * 16; y < cell.r * 16 + 15; y++) {
+        for (let x = cell.c * 16; x < cell.c * 16 + 15; x++) {
+          const l = lum(x, y);
+          cell.score += Math.abs(l - lum(x + 1, y)) + Math.abs(l - lum(x, y + 1));
+        }
+      }
+    }
+  } catch (e) {
+    return all;
+  }
+  return all.sort((a, b) => b.score - a.score).slice(0, Math.ceil(all.length / 2));
+}
+
+async function drawRound() {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const artists = new Set();
+    const works = [];
+    for (const w of shuffle(PAINTINGS)) {
+      if (artists.has(w.artist)) continue;
+      artists.add(w.artist);
+      works.push(w);
+      if (works.length === N) break;
+    }
+    const imgs = await loadImages(works.map((w) => w.image), { cors: true });
+    const usable = works.every((w) => {
+      const img = imgs.get(w.image);
+      if (!img) return false;
+      const r = img.naturalWidth / img.naturalHeight;
+      return Math.max(r, 1 / r) <= MAX_ASPECT;
+    });
+    if (usable) return { works, imgs };
+  }
+  return null;
+}
+
+async function newRound() {
+  const board = el('cu-board');
+  board.classList.add('is-loading');
+  el('cu-result').hidden = true;
+  el('btn-cu-submit').hidden = false;
+  el('btn-cu-next').hidden = true;
+  const { works, imgs } = await drawRound();
+  state.works = works;
+  state.imgs = new Map(works.map((w) => [w.id, imgs.get(w.image)]));
+  state.level = {};
+  state.anchor = {};
+  state.place = {};
+  for (const w of works) {
+    state.level[w.id] = 0;
+    state.place[w.id] = null;
+    VIEW.prepare(w.id);
+  }
+  state.labels = shuffle(works.map((w) => w.id));
+  state.selected = null;
+  state.locked = false;
+  state.scored = null;
+  board.classList.remove('is-loading');
+  render();
+}
+
+function labelHtml(labelId, cls = '') {
+  const w = workById(labelId);
+  const sel = state.selected === labelId ? ' is-selected' : '';
+  return `<div class="cu-label${sel}${cls}" tabindex="0" data-label="${labelId}">` +
+    `<span class="cu-l-title">${escapeHtml(w.title)}</span>` +
+    `<span class="cu-l-artist">${escapeHtml(w.artist)}</span>` +
+    `<span class="cu-l-year">${w.year}</span></div>`;
+}
+
+function render() {
+  const board = el('cu-board');
+  board.classList.toggle('is-locked', state.locked);
+  const placed = new Set(Object.values(state.place));
+
+  el('cu-paintings').innerHTML = state.works.map((w, i) => {
+    const labelId = state.place[w.id];
+    let slot;
+    if (labelId) {
+      const mark = state.locked ? (labelId === w.id ? ' ok' : ' no') : '';
+      slot = labelHtml(labelId, mark);
+    } else {
+      slot = '<span class="cu-slot-empty">Drop a label here</span>';
+    }
+    let after = '';
+    if (state.locked) {
+      const pts = state.scored[w.id];
+      after = labelId === w.id
+        ? `<p class="cu-verdict ok">Right &middot; ${pts} point${pts === 1 ? '' : 's'}</p>`
+        : `<p class="cu-verdict no">Actually <em>${escapeHtml(w.title)}</em>, ${escapeHtml(w.artist)}, ${w.year}</p>`;
+    }
+    return `<div class="cu-item">` +
+      `<div class="cu-view" tabindex="0" data-id="${w.id}" ` +
+      `aria-label="Painting ${i + 1}${state.locked ? '' : ': click to see more of it'}">` +
+      `<canvas></canvas></div>` +
+      `<div class="cu-strip" data-id="${w.id}">${VIEW.map(w.id)}<span class="cu-shown">${VIEW.shown(w.id)}</span></div>` +
+      `<div class="cu-slot" data-slot="${w.id}" tabindex="${labelId ? -1 : 0}">${slot}</div>${after}</div>`;
+  }).join('');
+
+  const tray = state.labels.filter((id) => !placed.has(id));
+  el('cu-tray').innerHTML = tray.map((id) => labelHtml(id)).join('') ||
+    (state.locked ? '' : '<span class="cu-tray-empty">All four labels placed</span>');
+  el('cu-tray').hidden = state.locked;
+
+  const clicks = Object.values(state.level).reduce((t, l) => t + l, 0);
+  el('cu-status').textContent = state.locked ? '' :
+    `${clicks} click${clicks === 1 ? '' : 's'} so far · up to ${MAX_SCORE - clicks} of ${MAX_SCORE} points still available`;
+  el('btn-cu-submit').disabled = Object.values(state.place).some((v) => !v);
+  drawViews();
+}
+
+/* Size each painting's canvas to fit its view box at the screen's pixel
+   density, in the proportions of whatever VIEW.frame says is showing, and
+   let the VIEW paint it. */
+function drawViews() {
+  const dpr = window.devicePixelRatio || 1;
+  document.querySelectorAll('.cu-view').forEach((view) => {
+    const id = view.dataset.id;
+    const img = state.imgs.get(id);
+    const canvas = view.querySelector('canvas');
+    const r = VIEW.frame(id);
+    const sw = r.w * img.naturalWidth, sh = r.h * img.naturalHeight;
+    const box = view.getBoundingClientRect();
+    const k = Math.min(box.width / sw, box.height / sh);
+    const cw = Math.max(1, Math.round(sw * k)), ch = Math.max(1, Math.round(sh * k));
+    canvas.style.width = `${cw}px`;
+    canvas.style.height = `${ch}px`;
+    canvas.width = Math.round(cw * dpr);
+    canvas.height = Math.round(ch * dpr);
+    VIEW.paint(canvas, id, r);
+  });
+}
+
+/* Close Up's painting: the current section, or once submitted the whole
+   painting with a box round the last section the player was looking at. */
+function paintSection(canvas, id, r) {
+  const dpr = window.devicePixelRatio || 1;
+  const img = state.imgs.get(id);
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, r.x * img.naturalWidth, r.y * img.naturalHeight,
+                r.w * img.naturalWidth, r.h * img.naturalHeight,
+                0, 0, canvas.width, canvas.height);
+  if (state.locked && state.level[id] < STEPS) {
+    const last = region(id, state.level[id]);
+    const lw = 2 * dpr;
+    const bx = last.x * canvas.width, by = last.y * canvas.height;
+    const bw = last.w * canvas.width, bh = last.h * canvas.height;
+    // A dark line under a white one, so the box reads on light and dark paint.
+    ctx.lineWidth = lw * 2;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.strokeRect(bx + lw, by + lw, bw - 2 * lw, bh - 2 * lw);
+    ctx.lineWidth = lw;
+    ctx.strokeStyle = '#fff';
+    ctx.strokeRect(bx + lw, by + lw, bw - 2 * lw, bh - 2 * lw);
+  }
+}
+
+/* The first section is a random cell from the busier half of the starting
+   grid. */
+function anchorSection(id) {
+  const { rows, cols } = grid(id, 0);
+  const cell = pick(busyCells(state.imgs.get(id), rows, cols));
+  state.anchor[id] = { x: (cell.c + 0.5) / cols, y: (cell.r + 0.5) / rows };
+}
+
+const CLOSE_UP = {
+  steps: LEVELS.length - 1,
+  prepare: anchorSection,
+  frame: (id) => region(id),
+  paint: paintSection,
+  map: mapHtml,
+  shown: shownLabel,
+};
+let VIEW = CLOSE_UP;
 
 /* One click: show the next bigger section. This is the only thing that
    costs points. */
@@ -320,6 +501,8 @@ function submit() {
 }
 
 function init() {
+  STEPS = VIEW.steps;
+  MAX_SCORE = N * STEPS;
   const board = el('cu-board');
   enableDrag(board, {
     items: '.cu-label',

@@ -7,9 +7,10 @@ is pure reordering — there is no tray or staging area. Five stages, each
 harder than the last. Served straight from `docs/`, no build step — plain
 `<script>` tags load everything.
 
-Three more games sit beside it, linked from a menu across the top of every
-page: **Same Year** (`sameyear.html`), **Close Up** (`closeup.html`) and
-**MoMA by the Numbers** (`numbers.html`). See "The other games" below.
+Four more games sit beside it, linked from a menu across the top of every
+page: **Same Year** (`sameyear.html`), **Close Up** (`closeup.html`),
+**Pixelated** (`pixelated.html`) and **MoMA by the Numbers**
+(`numbers.html`). See "The other games" below.
 
 Sibling project to `../museum_flashcards` (Studio Museum in Harlem); the
 palette and the "generated data as a `.js` file" pattern come from there.
@@ -56,7 +57,9 @@ Two things about this machine that are invisible until they bite:
   pretty-printed form at `data/paintings.json` for inspection and diffing.
   Don't hand-edit either; regenerate with `fetch_data.py`.
 - `docs/sameyear.html` + `sameyear.js`, `docs/closeup.html` + `closeup.js`,
-  `docs/numbers.html` + `numbers.js` — the three newer games, one page each.
+  `docs/pixelated.html` + `pixelated.js`, `docs/numbers.html` + `numbers.js`
+  — the newer games, one page each. `pixelated.html` loads `closeup.js`
+  too: see "Pixelated" below.
 - `docs/numbers_data.js` — generated, like `data.js`: `const NUMBERS = [...]`,
   the quiz questions. Mirrored at `data/numbers.json`.
 - `docs/common.js` — helpers and the pointer-drag routine shared by the
@@ -353,6 +356,31 @@ sends `Access-Control-Allow-Origin: *`; the images are loaded with
 `crossOrigin = "anonymous"` for it. If that header ever goes away, the
 first section falls back to any cell. Very long, thin paintings (aspect
 over 2.5) are left out, since their sections are too slender to read.
+
+### Pixelated
+
+Close Up with a different way of hiding the paintings. Each starts as a
+single colour, the mean of the whole canvas, and each click redraws it as a
+finer grid of averaged squares — `PIXEL_GRIDS = 1, 2, 3, 4, 5, 6` squares a
+side — then the click after 6×6 shows the painting itself. The grid is
+square whatever the painting's shape, so cells take the painting's
+proportions. Six clicks, so each painting is worth 6 and the maximum is 24.
+No locator map: every view already covers the whole canvas.
+
+**It runs on Close Up's code.** `closeup.js` keeps everything the two games
+share (drawing a round, labels, drag and click placement, scoring) and
+delegates what differs to a `VIEW` object: `prepare`, `frame` (the part of
+the image the canvas is shaped to), `paint`, `map`, `shown` and `steps`.
+Close Up's is `CLOSE_UP`; `pixelated.js` loads after `closeup.js` and sets
+`VIEW = PIXELATED` before `init()` reads it. A change to the shared label
+logic therefore changes both games, and `test_game.py` covers both.
+
+Colours are exact means, not the browser's downscale: each painting is
+sampled once onto a 60×60 canvas (60 divides by every grid size), and each
+cell averages its block of samples. Reading pixels relies on the same CORS
+header as Close Up's busy-cell check; if it is missing, `paintPixels()`
+falls back to letting the browser shrink the image to n×n and blowing it up
+unsmoothed, which looks nearly the same.
 
 ### MoMA by the Numbers
 

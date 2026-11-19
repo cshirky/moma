@@ -403,8 +403,8 @@ def main():
               page.evaluate("[...document.querySelectorAll('#pips li')].map(l=>l.className).join('|')"))
 
         print("\n== menu of games ==")
-        games = ["Chronology", "Same Year", "Close Up", "By the Numbers"]
-        for path, current_name in zip(["", "sameyear.html", "closeup.html", "numbers.html"], games):
+        games = ["Chronology", "Same Year", "Close Up", "Pixelated", "By the Numbers"]
+        for path, current_name in zip(["", "sameyear.html", "closeup.html", "pixelated.html", "numbers.html"], games):
             page.goto(url + path)
             names = page.eval_on_selector_all(".game-nav a", "as => as.map(a => a.textContent)")
             cur = page.eval_on_selector_all('.game-nav a[aria-current="page"]', "as => as.map(a => a.textContent)")
@@ -555,6 +555,60 @@ def main():
         page.click("#btn-cu-submit")
         check("all four right without a click scores the perfect 32",
               page.inner_text(".cu-score").split("/")[0].strip() == "32", page.inner_text(".cu-score"))
+
+        print("\n== Pixelated ==")
+        page.goto(url + "pixelated.html")
+        page.wait_for_selector("#cu-board:not(.is-loading) .cu-view canvas", timeout=30000)
+        ids = page.evaluate("state.works.map(w => w.id)")
+        check("Pixelated uses its own view, not Close Up's",
+              page.evaluate("VIEW === PIXELATED && STEPS === 6 && MAX_SCORE === 24"))
+        check("four paintings by four artists",
+              len(ids) == 4 and page.evaluate("new Set(state.works.map(w => w.artist)).size") == 4)
+        # The colour on the canvas at the centre of each cell of an n x n grid,
+        # against the mean colour worked out for that cell.
+        grid_js = """(id, n) => {
+            const c = document.querySelector(`.cu-view[data-id="${id}"] canvas`), ctx = c.getContext('2d');
+            const want = cellColours(id, n), got = [];
+            for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) {
+              const d = ctx.getImageData(Math.floor((k + 0.5) * c.width / n), Math.floor((r + 0.5) * c.height / n), 1, 1).data;
+              got.push(`rgb(${d[0]}, ${d[1]}, ${d[2]})`);
+            }
+            return { want, got }; }"""
+        first = ids[0]
+        one = page.evaluate(f"({grid_js})('{first}', 1)")
+        corners = page.evaluate(f"""(() => {{
+            const c = document.querySelector('.cu-view[data-id="{first}"] canvas'), ctx = c.getContext('2d');
+            return [[1, 1], [c.width - 2, 1], [1, c.height - 2], [c.width - 2, c.height - 2]]
+              .map(([x, y]) => Array.from(ctx.getImageData(x, y, 1, 1).data.slice(0, 3)).join()); }})()""")
+        check("the first view is one flat colour, the painting's average",
+              one["got"] == one["want"] and len(set(corners)) == 1, f"{one} {corners}")
+        check("no locator map in Pixelated", page.locator(".cu-map").count() == 0)
+        ok_grids = []
+        for n in range(2, 7):
+            page.click(f'.cu-view[data-id="{first}"]')
+            g = page.evaluate(f"({grid_js})('{first}', {n})")
+            ok_grids.append(g["got"] == g["want"] and f"{n} × {n}" in page.inner_text(f'.cu-strip[data-id="{first}"]'))
+        check("clicks redraw it as 2x2, 3x3 ... 6x6 grids of averaged squares", all(ok_grids), ok_grids)
+        page.click(f'.cu-view[data-id="{first}"]')
+        page.click(f'.cu-view[data-id="{first}"]')
+        check("the click after 6x6 shows the whole painting, and further clicks cost nothing",
+              page.evaluate(f"state.level['{first}']") == 6
+              and "Whole painting" in page.inner_text(f'.cu-strip[data-id="{first}"]'))
+        for lab, slot in [(ids[0], ids[0]), (ids[1], ids[1]), (ids[2], ids[3]), (ids[3], ids[2])]:
+            page.click(f'.cu-label[data-label="{lab}"]'); page.click(f'.cu-slot[data-slot="{slot}"]')
+        page.click("#btn-cu-submit")
+        scored = page.evaluate("state.scored")
+        check("score: a right label keeps 6 less its clicks, a wrong one scores 0",
+              scored == {ids[0]: 0, ids[1]: 6, ids[2]: 0, ids[3]: 0}
+              and page.inner_text(".cu-score").split("/")[0].strip() == "6", scored)
+        check("after submitting, every painting is shown whole",
+              page.locator(".cu-shown", has_text="Whole painting").count() == 4)
+        page.click("#btn-cu-next")
+        page.wait_for_selector("#cu-board:not(.is-loading) .cu-view canvas", timeout=30000)
+        page.evaluate("""() => { for (const w of state.works) state.place[w.id] = w.id; render(); }""")
+        page.click("#btn-cu-submit")
+        check("all four right from one colour each scores the perfect 24",
+              page.inner_text(".cu-score").split("/")[0].strip() == "24", page.inner_text(".cu-score"))
 
         print("\n== MoMA by the Numbers ==")
         page.goto(url + "numbers.html")
