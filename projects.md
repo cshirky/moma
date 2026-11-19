@@ -1,10 +1,203 @@
-# Projects: Chronology as an iOS and Android app
+# Projects
+
+## Contents
+
+- [Games built on MoMA data](#games-built-on-moma-data)
+  - Built
+    - [Chronology](#chronology)
+    - [Same Year](#same-year)
+    - [Close Up](#close-up)
+  - To build
+    - [Which tortured artist are you?](#which-tortured-artist-are-you)
+    - [MoMA by the numbers](#moma-by-the-numbers)
+    - [4x4](#4x4)
+    - [Find the real title](#find-the-real-title) (group game)
+    - [Say what you see](#say-what-you-see) (group game)
+  - [What the group games need](#what-the-group-games-need)
+- [Chronology as an iOS and Android app](#chronology-as-an-ios-and-android-app)
+  - [Recommendation](#recommendation)
+  - [The real blockers](#the-real-blockers)
+  - [Changes the code would need](#changes-the-code-would-need)
+  - [Tooling and accounts](#tooling-and-accounts)
+  - [Testing](#testing)
+  - [Rough timeline](#rough-timeline-capacitor-route-after-rights-are-settled)
+  - [Ongoing cost of having an app](#ongoing-cost-of-having-an-app)
+
+## Games built on MoMA data
+
+Every game here draws on MoMA's public collection data, the same CSVs that
+`fetch_data.py` already downloads: about 160,000 artworks and 16,000 artists.
+The three built games use only the paintings currently on view. The new ones
+can reach further into the collection.
+
+### Built
+
+#### Chronology
+
+*Put the paintings in the order they were made.*
+
+Five stages of 3 to 7 paintings, each by a different artist. Each stage is
+dealt into a single column in the wrong order, and the player drags them
+into sequence, newest at the top. Later stages get harder by shrinking the
+minimum gap between dates from 25 years to 5. Each stage is scored by how
+many moves it is from correct, and the run is scored out of 20. The end
+screen lists all 25 paintings as one timeline and builds a floor-by-floor
+route to see them at MoMA.
+
+#### Same Year
+
+*One abstract, one representational: match each to its year.*
+
+Five rows, one per year, newest at the top. Each year has an abstract
+painting and a representational one, dealt so that no painting starts in its
+own row. The player swaps paintings within their column until each lines up
+with its year. It's scored out of 10, one point per painting in the right
+row. The abstract/representational labels are hand-made, in
+`docs/styles.js`.
+
+#### Close Up
+
+*Name the painting from a fragment.*
+
+Four paintings by four artists, each showing only a small section, and four
+labels (title, artist, year) to drag onto them. Clicking a painting widens
+the view one step, from an eighth of the canvas up to the whole thing, and
+each step costs a point. A small locator map shows where on the canvas the
+section sits. Each painting is worth 8 and a wrong label scores 0, so the
+maximum is 32.
+
+### To build
+
+#### Which tortured artist are you?
+
+*A personality quiz that ends in front of a painting.*
+
+About eight light multiple-choice questions ("Your studio is: a barn / a
+loft / your kitchen table / wherever the bar is"). Each answer adds weight to
+a few artists from a hand-picked cast whose lives are as well known as their
+work: Van Gogh, Rothko, Pollock, Kahlo, Basquiat, Gorky, Kirchner, Arbus. The
+highest total wins. The result card shows that artist, one of their works
+MoMA holds, and the gallery where it hangs, if it's on view.
+
+The data supplies the works and the galleries, but not the personalities.
+The cast, the questions and the weights have to be written by hand, the way
+`styles.js` was. The tone should be affectionate rather than making light of
+real suffering, so the questions stay about habits and temperament, not
+illness.
+
+#### MoMA by the numbers
+
+*Twelve questions about the collection, each with four answers.*
+
+A multiple-choice quiz of surprising numbers. Pick one of four answers, see
+the real figure with a sentence of context, and move on. It's scored out of
+12. Most answers can be computed from the CSVs, so `fetch_data.py` could
+regenerate them on each refresh and the quiz would stay true as the
+collection grows.
+
+The figures below come from the snapshot in `raw/` (August 2026). The right
+answer is in bold.
+
+| # | Question | Answers |
+|---|----------|---------|
+| 1 | Total recorded weight of Richard Serra's works at MoMA | 33 tonnes · 110 tonnes · **330 tonnes** · 1,100 tonnes |
+| 2 | Total number of curators at MoMA | *Not in the data, so it needs an outside source, such as MoMA's staff listing* |
+| 3 | The year the oldest dated work in the collection was made | **1768** · 1820 · 1859 · 1880 |
+| 4 | Works in MoMA's public collection data | 16,000 · 60,000 · **160,000** · 600,000 |
+| 5 | The artist with the most works in the collection | Pablo Picasso · Eugène Atget · Louise Bourgeois · **Ludwig Mies van der Rohe** |
+| 6 | Works titled exactly "Untitled" | 850 · 3,000 · **8,500** · 25,000 |
+| 7 | Paintings by Picasso in the collection | 12 · **55** · 140 · 1,400 |
+| 8 | Height of the tallest painting | 3 m · 5 m · **10 m** · 20 m |
+| 9 | Women's share of the artists whose gender is recorded | 5% · **20%** · 35% · 50% |
+| 10 | The year MoMA acquired the most works | 1929 · **1968** · 1984 · 2008 |
+| 11 | The share of the collection on view right now | **under 1%** · 5% · 12% · 25% |
+| 12 | Nationalities represented among the artists | 40 · 90 · **140** · 200 |
+
+Notes for the answer screens:
+
+1. Only 9 of Serra's 54 works have a recorded weight. *Switch* alone weighs
+   185 tonnes.
+3. The oldest dated works are a Josiah Wedgwood coffee and tea service.
+5. The Mies van der Rohe Archive accounts for about 16,000 of his 16,272
+   works. Picasso has 1,407.
+7. "1,400" is a deliberate trap: that is Picasso's total across every
+   medium. 55 of those works are paintings.
+8. The tallest is Niele Toroni's *Imprints of a No. 50 Paintbrush Repeated
+   at Regular Intervals of 30 cm*, at 1,011 cm.
+9. 2,530 women out of about 12,600 artists with a recorded gender.
+10. The museum acquired 20,527 works in 1968.
+11. 1,248 of 160,705 works are on view.
+12. The exact count is 142, not counting "Nationality unknown".
+
+The weight and size fields are filled in for only a fraction of the
+records, so questions built on them should say "recorded" and stay
+approximate.
+
+#### 4x4
+
+*Sixteen works, four hidden groups.*
+
+A grid of 16 images. The player selects four that they think share
+something and submits them. A right group locks together and is named; a
+wrong guess costs one of four lives. Some groups can come straight from the
+data: same artist, same year, same gallery room, same medium (oil on
+burlap), the same word in the title. Others need hand labels: subject (dogs,
+windows, bathers), or style, as `styles.js` already provides. The puzzle is
+hard to the extent that the groups overlap. A red-herring work that seems to
+belong to two groups is what makes it a puzzle rather than a sort. Puzzles
+would be generated and then checked by eye, since a bad overlap can make a
+grid unsolvable. That suits a daily-puzzle format.
+
+#### Find the real title
+
+*Group game: bluff a title for a real work.*
+
+Everyone sees the same image with its artist and year, but not its title.
+Each player privately writes a title they think could pass for the real
+one. The real title is shuffled in with the fakes, everyone votes for the
+one they believe, and the round is scored: a point for finding the real
+title, and a point for each player fooled by yours. Modern art is ideal for
+this, because real titles range from *Untitled* to *Imprints of a No. 50
+Paintbrush Repeated at Regular Intervals of 30 cm*. Draw works with
+distinctive titles, and leave out the 8,500 called "Untitled".
+
+#### Say what you see
+
+*Group game: describe one painting so the others can find it.*
+
+The group sees five works. One player, the describer, is also shown which
+one is the target, and has to describe it in words, out loud or typed, until
+the others can pick it out. The describer and every player who picks the
+target score; a wrong pick scores nothing. The five should be similar enough
+to be hard (same decade, same palette, same subject), so that "the blue
+one" won't do. Variants: a time limit, a word limit, or banned words (no
+colours, no naming the subject).
+
+### What the group games need
+
+The site is static, with no server, and the group games are the first
+designs that need several players to share a game. There are two ways to
+handle that:
+
+- **Pass and play on one device.** The phone goes around the table, and
+  private steps (writing a fake title, seeing the target) happen one player
+  at a time behind a "hand to the next player" screen. This works with the
+  current static site.
+- **Each player on their own phone.** This is closer to how party games
+  work, with a room code and live voting, but it needs a realtime backend,
+  which would be the project's first. That could be a small hosted service
+  (Firebase, Supabase, PartyKit) or a WebSocket server.
+
+Pass-and-play is the cheaper first step and tests whether the games are fun
+before anything is built server-side.
+
+## Chronology as an iOS and Android app
 
 What it would take to ship the game in the App Store and Google Play. The code
 is the easy part. The hard parts are rights, store review, and keeping the
 painting pool fresh without shipping a new build every time MoMA rehangs.
 
-## Recommendation
+### Recommendation
 
 1. **Clear the rights first.** Nothing else is worth starting until this is
    settled; see the next section.
@@ -20,9 +213,9 @@ painting pool fresh without shipping a new build every time MoMA rehangs.
    not weeks. The game is small, but drag-to-reorder, the reveal and the map
    would all have to be rebuilt.
 
-## The real blockers
+### The real blockers
 
-### Image rights
+#### Image rights
 
 MoMA's collection *metadata* is public domain (CC0), so `fetch_data.py` is on
 solid ground. The *images* are not. Most of the pool is 20th-century work still
@@ -41,7 +234,7 @@ distributed product, and both stores act on IP complaints (Apple guideline
 - **Link instead of embed.** This doesn't work: the game is looking at
   paintings.
 
-### Name and trademark
+#### Name and trademark
 
 "MoMA" and "Museum of Modern Art" are trademarks. An app titled or branded with
 them, without permission, is likely to be rejected or taken down. Store
@@ -49,7 +242,7 @@ listings would need a neutral name ("Chronology: Modern Painting") and
 wording like "uses public data from the Museum of Modern Art collection",
 unless MoMA signs on.
 
-### Apple's "minimum functionality" rule
+#### Apple's "minimum functionality" rule
 
 Guideline 4.2 rejects apps that are "a repackaged website". A Capacitor wrapper
 passes when it feels native and does something the website doesn't. Candidates
@@ -61,7 +254,7 @@ here, which are also worth doing for their own sake:
   printed
 - optionally, a "you're at MoMA" mode that uses location to put the map first
 
-## Changes the code would need
+### Changes the code would need
 
 All of this applies to the Capacitor route. A native rewrite would need it too.
 
@@ -79,7 +272,7 @@ All of this applies to the Capacitor route. A native rewrite would need it too.
 `moveTo()` being the single entry point for every move pays off here: haptics
 and accessibility actions are both one call each.
 
-## Tooling and accounts
+### Tooling and accounts
 
 - **Apple Developer Program**: $99/year. **Google Play Console**: $25 one-time.
 - **Building for iOS needs a Mac with Xcode.** This machine is Linux, so you
@@ -92,7 +285,7 @@ and accessibility actions are both one call each.
   size, a privacy policy URL (a page on the Pages site is enough), and an age
   rating questionnaire.
 
-## Testing
+### Testing
 
 - Add WebKit to the Playwright run in `test_game.py`. It's the closest thing
   to iOS Safari that runs on Linux, and it catches most WKWebView differences.
@@ -100,7 +293,7 @@ and accessibility actions are both one call each.
   scroll conflicts and safe areas only show up on hardware.
 - Use TestFlight for iOS beta testing and the Play closed track for Android.
 
-## Rough timeline (Capacitor route, after rights are settled)
+### Rough timeline (Capacitor route, after rights are settled)
 
 | Phase | Effort |
 |-------|--------|
@@ -110,7 +303,7 @@ and accessibility actions are both one call each.
 | Device testing and fixes | 3–5 days |
 | Store listings, privacy forms, review rounds | 1–2 weeks, mostly waiting |
 
-## Ongoing cost of having an app
+### Ongoing cost of having an app
 
 - Annual Apple fee, and store-policy changes to keep up with: every year
   there's a new SDK target level and privacy requirements.
