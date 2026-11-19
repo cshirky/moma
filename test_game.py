@@ -155,9 +155,17 @@ def main():
                 page.mouse.move(cx, cy); page.mouse.down()
                 page.mouse.move(cx - 60, cy - 40, steps=6); page.mouse.up()
                 after = page.evaluate("[lb.x, lb.y]")
-                check("dragging a zoomed painting pans it",
-                      after[0] < before[0] and after[1] < before[1] and page.is_visible("#lightbox"),
-                      f"{before} -> {after}")
+                # The pan limit on each axis: zero where even the zoomed painting
+                # still fits the screen (a tall, narrow one, say), which correctly
+                # can't pan that way. Expect movement only where there is room.
+                room = page.evaluate("""(() => { const b = document.querySelector('#lightbox');
+                    return [Math.max(0, (lb.w * lb.scale - b.clientWidth) / 2),
+                            Math.max(0, (lb.h * lb.scale - b.clientHeight) / 2)]; })()""")
+                can = [room[i] > 0 and before[i] > -room[i] + 0.5 for i in range(2)]
+                check("dragging a zoomed painting pans it, along every axis it overflows",
+                      any(can) and all(after[i] < before[i] for i in range(2) if can[i])
+                      and page.is_visible("#lightbox"),
+                      f"{before} -> {after}, room {room}")
                 page.mouse.click(cx, cy)
                 page.wait_for_timeout(300)
                 check("clicking a zoomed painting zooms back out to fit",
@@ -569,7 +577,11 @@ def main():
         page.wait_for_selector("#cu-board:not(.is-loading) .cu-view canvas", timeout=30000)
         ids = page.evaluate("state.works.map(w => w.id)")
         check("Pixelated uses its own view, not Close Up's",
-              page.evaluate("VIEW === PIXELATED && STEPS === 6 && MAX_SCORE === 24"))
+              page.evaluate("VIEW === PIXELATED && STEPS === 9 && MAX_SCORE === 36"))
+        check("Pixelated leaves out every painting titled Untitled, and only those",
+              page.evaluate("""PAINTINGS.some(w => /^untitled\\b/i.test(w.title)) &&
+                  PAINTINGS.every(w => VIEW.allows(w) === !/^untitled\\b/i.test(w.title)) &&
+                  state.works.every(w => VIEW.allows(w))"""))
         check("four paintings by four artists",
               len(ids) == 4 and page.evaluate("new Set(state.works.map(w => w.artist)).size") == 4)
         # The colour on the canvas at the centre of each cell of an n x n grid,
@@ -583,40 +595,38 @@ def main():
             }
             return { want, got }; }"""
         first = ids[0]
-        one = page.evaluate(f"({grid_js})('{first}', 1)")
-        corners = page.evaluate(f"""(() => {{
-            const c = document.querySelector('.cu-view[data-id="{first}"] canvas'), ctx = c.getContext('2d');
-            return [[1, 1], [c.width - 2, 1], [1, c.height - 2], [c.width - 2, c.height - 2]]
-              .map(([x, y]) => Array.from(ctx.getImageData(x, y, 1, 1).data.slice(0, 3)).join()); }})()""")
-        check("the first view is one flat colour, the painting's average",
-              one["got"] == one["want"] and len(set(corners)) == 1, f"{one} {corners}")
+        two = page.evaluate(f"({grid_js})('{first}', 2)")
+        check("the first view is a 2x2 grid of averaged squares",
+              two["got"] == two["want"] and "2 × 2" in page.inner_text(f'.cu-strip[data-id="{first}"]'), two)
         check("no locator map in Pixelated", page.locator(".cu-map").count() == 0)
         ok_grids = []
-        for n in range(2, 7):
+        for n in range(3, 11):
             page.click(f'.cu-view[data-id="{first}"]')
             g = page.evaluate(f"({grid_js})('{first}', {n})")
             ok_grids.append(g["got"] == g["want"] and f"{n} × {n}" in page.inner_text(f'.cu-strip[data-id="{first}"]'))
-        check("clicks redraw it as 2x2, 3x3 ... 6x6 grids of averaged squares", all(ok_grids), ok_grids)
+        check("clicks redraw it as 3x3, 4x4 ... 10x10 grids of averaged squares", all(ok_grids), ok_grids)
         page.click(f'.cu-view[data-id="{first}"]')
         page.click(f'.cu-view[data-id="{first}"]')
-        check("the click after 6x6 shows the whole painting, and further clicks cost nothing",
-              page.evaluate(f"state.level['{first}']") == 6
+        check("the click after 10x10 shows the whole painting, and further clicks cost nothing",
+              page.evaluate(f"state.level['{first}']") == 9
               and "Whole painting" in page.inner_text(f'.cu-strip[data-id="{first}"]'))
         for lab, slot in [(ids[0], ids[0]), (ids[1], ids[1]), (ids[2], ids[3]), (ids[3], ids[2])]:
             page.click(f'.cu-label[data-label="{lab}"]'); page.click(f'.cu-slot[data-slot="{slot}"]')
         page.click("#btn-cu-submit")
         scored = page.evaluate("state.scored")
-        check("score: a right label keeps 6 less its clicks, a wrong one scores 0",
-              scored == {ids[0]: 0, ids[1]: 6, ids[2]: 0, ids[3]: 0}
-              and page.inner_text(".cu-score").split("/")[0].strip() == "6", scored)
+        check("score: a right label keeps 9 less its clicks, a wrong one scores 0",
+              scored == {ids[0]: 0, ids[1]: 9, ids[2]: 0, ids[3]: 0}
+              and page.inner_text(".cu-score").split("/")[0].strip() == "9", scored)
         check("after submitting, every painting is shown whole",
               page.locator(".cu-shown", has_text="Whole painting").count() == 4)
         page.click("#btn-cu-next")
         page.wait_for_selector("#cu-board:not(.is-loading) .cu-view canvas", timeout=30000)
         page.evaluate("""() => { for (const w of state.works) state.place[w.id] = w.id; render(); }""")
         page.click("#btn-cu-submit")
-        check("all four right from one colour each scores the perfect 24",
-              page.inner_text(".cu-score").split("/")[0].strip() == "24", page.inner_text(".cu-score"))
+        check("all four right from the first 2x2 view scores the perfect 36",
+              page.inner_text(".cu-score").split("/")[0].strip() == "36", page.inner_text(".cu-score"))
+        check("no Untitled paintings in the second round either",
+              page.evaluate("state.works.every(w => !/^untitled\\b/i.test(w.title))"))
 
         print("\n== MoMA by the Numbers ==")
         page.goto(url + "numbers.html")

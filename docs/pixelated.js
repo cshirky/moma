@@ -1,59 +1,74 @@
 /* Pixelated — Close Up's game with a different way of hiding the paintings.
-   Each one starts as a single colour, the average of the whole canvas, and
-   every click redraws it as a finer grid of averaged squares: 2x2, 3x3, up
-   to 6x6, and then the painting itself. The labels, clicks and scoring are
+   Each one starts as a 2x2 grid of averaged colours, and every click redraws
+   it as a finer grid: 3x3, 4x4, up to 10x10, and then the painting itself. The labels, clicks and scoring are
    Close Up's, from closeup.js, which must load first; this file only swaps
    in the VIEW that draws the paintings. */
 
 /* Squares along each side at each step; the step after the last is the
    whole painting. The grid is square whatever the painting's shape, so a
    landscape painting has wide cells and a portrait one tall cells. */
-const PIXEL_GRIDS = [1, 2, 3, 4, 5, 6];
+const PIXEL_GRIDS = [2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-/* Every painting is sampled once onto a SAMPLE x SAMPLE canvas. 60 divides
-   evenly by every grid size above, so each cell's colour is the exact mean of
-   a whole block of samples. */
-const SAMPLE = 60;
-const samples = new Map();   // id -> RGBA pixels, or null if unreadable
+/* Every painting is sampled once onto a SAMPLE x SAMPLE canvas, and each
+   cell's colour is the mean of the samples inside it. Where a grid size
+   doesn't divide 840 (9, say), cell edges round to whole samples, so cells
+   differ in size by at most one sample in about ninety: invisible. A size
+   that does divide it, like 840 / 8, gives exactly equal blocks. */
+const SAMPLE = 840;
 
-function sampleOf(id) {
-  if (!samples.has(id)) {
-    let px = null;
-    try {
-      const c = document.createElement('canvas');
-      c.width = c.height = SAMPLE;
-      const ctx = c.getContext('2d', { willReadFrequently: true });
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(state.imgs.get(id), 0, 0, SAMPLE, SAMPLE);
-      // Works because moma.org allows CORS and the images load with it.
-      px = ctx.getImageData(0, 0, SAMPLE, SAMPLE).data;
-    } catch (e) {
-      px = null;
-    }
-    samples.set(id, px);
-  }
-  return samples.get(id);
-}
+/* id -> one list of cell colours per grid size, worked out when the round is
+   drawn; null if the pixels couldn't be read. The 840 x 840 sample itself
+   is about 3 MB, so it is thrown away once the colours are known. */
+const colours = new Map();
 
-/* The mean colour of each cell of an n x n grid, row by row, as CSS colours. */
-function cellColours(id, n) {
-  const px = sampleOf(id);
-  if (!px) return null;
-  const k = SAMPLE / n, out = [];
+/* A painting called Untitled gives the player nothing to recognise on its
+   label, so Pixelated leaves them out: "Untitled", "Untitled (Blue)" and
+   the like. */
+const UNTITLED = /^untitled\b/i;
+
+/* The mean colour of each cell of an n x n grid over the sample, row by
+   row, as CSS colours. */
+function averageGrid(px, n) {
+  const edge = (i) => Math.round((i * SAMPLE) / n), out = [];
   for (let r = 0; r < n; r++) {
     for (let c = 0; c < n; c++) {
+      const x0 = edge(c), x1 = edge(c + 1), y0 = edge(r), y1 = edge(r + 1);
+      const m = (x1 - x0) * (y1 - y0);
       let R = 0, G = 0, B = 0;
-      for (let y = r * k; y < (r + 1) * k; y++) {
-        for (let x = c * k; x < (c + 1) * k; x++) {
-          const i = (y * SAMPLE + x) * 4;
+      for (let y = y0; y < y1; y++) {
+        for (let i = (y * SAMPLE + x0) * 4, end = (y * SAMPLE + x1) * 4; i < end; i += 4) {
           R += px[i]; G += px[i + 1]; B += px[i + 2];
         }
       }
-      const m = k * k;
       out.push(`rgb(${Math.round(R / m)}, ${Math.round(G / m)}, ${Math.round(B / m)})`);
     }
   }
   return out;
+}
+
+function preparePixels(id) {
+  // Drop colours for paintings no longer on the board.
+  for (const k of colours.keys()) if (!workById(k)) colours.delete(k);
+  let grids = null;
+  try {
+    const c = document.createElement('canvas');
+    c.width = c.height = SAMPLE;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(state.imgs.get(id), 0, 0, SAMPLE, SAMPLE);
+    // Works because moma.org allows CORS and the images load with it.
+    const px = ctx.getImageData(0, 0, SAMPLE, SAMPLE).data;
+    grids = PIXEL_GRIDS.map((n) => averageGrid(px, n));
+  } catch (e) {
+    grids = null;
+  }
+  colours.set(id, grids);
+}
+
+/* The colours for an n x n grid, or null if the pixels were unreadable. */
+function cellColours(id, n) {
+  const grids = colours.get(id);
+  return grids ? grids[PIXEL_GRIDS.indexOf(n)] : null;
 }
 
 function pixelStep(id) {
@@ -98,12 +113,13 @@ function pixelShown(id) {
   const step = pixelStep(id);
   if (step >= PIXEL_GRIDS.length) return 'Whole painting';
   const n = PIXEL_GRIDS[step];
-  return n === 1 ? 'One colour' : `${n} &times; ${n} squares`;
+  return `${n} &times; ${n} squares`;
 }
 
 const PIXELATED = {
   steps: PIXEL_GRIDS.length,
-  prepare: (id) => samples.delete(id),
+  allows: (w) => !UNTITLED.test(w.title),
+  prepare: preparePixels,
   frame: () => ({ x: 0, y: 0, w: 1, h: 1 }),
   paint: paintPixels,
   map: () => '',

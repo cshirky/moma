@@ -372,16 +372,21 @@ over 2.5) are left out, since their sections are too slender to read.
 ### Pixelated
 
 Close Up with a different way of hiding the paintings. Each starts as a
-single colour, the mean of the whole canvas, and each click redraws it as a
-finer grid of averaged squares — `PIXEL_GRIDS = 1, 2, 3, 4, 5, 6` squares a
-side — then the click after 6×6 shows the painting itself. The grid is
-square whatever the painting's shape, so cells take the painting's
-proportions. Six clicks, so each painting is worth 6 and the maximum is 24.
-No locator map: every view already covers the whole canvas.
+2×2 grid of averaged colours, and each click redraws it as a finer grid —
+`PIXEL_GRIDS = 2, 3, 4, 5, 6, 7, 8, 9, 10` squares a side — then the click
+after 10×10 shows the painting itself. The grid is square whatever the
+painting's shape, so cells take the painting's proportions. Nine clicks, so
+each painting is worth 9 and the maximum is 36. No locator map: every view
+already covers the whole canvas.
+
+**No paintings titled Untitled** ("Untitled", "Untitled (Blue)"…), via the
+`VIEW.allows` hook in the shared draw: a label reading *Untitled* gives the
+player nothing to match against. Close Up still uses them.
 
 **It runs on Close Up's code.** `closeup.js` keeps everything the two games
 share (drawing a round, labels, drag and click placement, scoring) and
-delegates what differs to a `VIEW` object: `prepare`, `frame` (the part of
+delegates what differs to a `VIEW` object: `allows` (which paintings it
+may draw), `prepare`, `frame` (the part of
 the image the canvas is shaped to), `paint`, `map`, `shown` and `steps`.
 Close Up's is `CLOSE_UP`; `pixelated.js` loads after `closeup.js` and sets
 `VIEW = PIXELATED` before `init()` reads it. A change to the shared label
@@ -393,8 +398,12 @@ draws Close Up's sections. That happened on the first deploy, and is why
 every asset is now fingerprinted (see "Deploying").
 
 Colours are exact means, not the browser's downscale: each painting is
-sampled once onto a 60×60 canvas (60 divides by every grid size), and each
-cell averages its block of samples. Reading pixels relies on the same CORS
+sampled once onto an 840×840 canvas and each cell averages the samples
+inside it. Where a grid size doesn't divide 840 (9, say), cell edges round
+to whole samples, so cells differ by at most one sample in about ninety.
+Don't chase exact division: 2 to 10 would need 2520×2520, about 25 MB a
+painting. All nine grids are worked out when the round is drawn and the
+sample is then discarded, since it is about 3 MB a painting. Reading pixels relies on the same CORS
 header as Close Up's busy-cell check; if it is missing, `paintPixels()`
 falls back to letting the browser shrink the image to n×n and blowing it up
 unsmoothed, which looks nearly the same.
