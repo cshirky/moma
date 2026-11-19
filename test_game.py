@@ -403,12 +403,13 @@ def main():
               page.evaluate("[...document.querySelectorAll('#pips li')].map(l=>l.className).join('|')"))
 
         print("\n== menu of games ==")
-        for path, current_name in [("", "Chronology"), ("sameyear.html", "Same Year"), ("closeup.html", "Close Up")]:
+        games = ["Chronology", "Same Year", "Close Up", "By the Numbers"]
+        for path, current_name in zip(["", "sameyear.html", "closeup.html", "numbers.html"], games):
             page.goto(url + path)
             names = page.eval_on_selector_all(".game-nav a", "as => as.map(a => a.textContent)")
             cur = page.eval_on_selector_all('.game-nav a[aria-current="page"]', "as => as.map(a => a.textContent)")
-            check(f"{current_name}: menu links all three games and marks this one",
-                  names == ["Chronology", "Same Year", "Close Up"] and cur == [current_name], f"{names} {cur}")
+            check(f"{current_name}: menu links every game and marks this one",
+                  names == games and cur == [current_name], f"{names} {cur}")
 
         print("\n== Same Year ==")
         page.goto(url + "sameyear.html")
@@ -554,6 +555,63 @@ def main():
         page.click("#btn-cu-submit")
         check("all four right without a click scores the perfect 32",
               page.inner_text(".cu-score").split("/")[0].strip() == "32", page.inner_text(".cu-score"))
+
+        print("\n== MoMA by the Numbers ==")
+        page.goto(url + "numbers.html")
+        page.wait_for_selector(".nb-option")
+        qs = page.evaluate("NUMBERS")
+        check("twelve questions", len(qs) == 12, len(qs))
+        check("every question has four distinct options and a valid answer",
+              all(len(q["options"]) == 4 and len(set(q["options"])) == 4
+                  and 0 <= q["answer"] < 4 and q["note"] for q in qs))
+        slots = [sum(q["answer"] == i for q in qs) for i in range(4)]
+        check("undershoots as often as it overshoots, middle options right about 3/5 of the time",
+              slots[0] == slots[3] and 2 <= slots[0] <= 3 and slots[1] + slots[2] >= 6, slots)
+        check("facts line up with the options, and never sit on the right answer",
+              all(len(q["facts"]) == 4 and not q["facts"][q["answer"]] for q in qs))
+        tops = page.eval_on_selector_all(".nb-option", "bs => bs.map(b => b.getBoundingClientRect().top)")
+        lefts = page.eval_on_selector_all(".nb-option", "bs => bs.map(b => b.getBoundingClientRect().left)")
+        check("options stack in one column", tops == sorted(tops) and len(set(tops)) == 4
+              and len(set(lefts)) == 1, f"{tops} {lefts}")
+        check("no option is focused or marked before a guess",
+              page.evaluate("!document.activeElement.closest('.nb-option')")
+              and page.locator(".nb-option.ok, .nb-option.no, .nb-option.picked").count() == 0)
+        # Answer the first right with a click and the rest wrong with the keyboard.
+        order = page.evaluate("state.order.map(q => q.answer)")
+        page.click(f'.nb-option[data-i="{order[0]}"]')
+        check("a right pick is marked right", page.locator(".nb-option.ok").count() == 1
+              and page.locator(".nb-option.no").count() == 0
+              and "Right" in page.inner_text(".nb-head"))
+        page.keyboard.press(str((order[0] + 1) % 4 + 1))
+        check("a second pick on an answered question changes nothing",
+              page.evaluate("state.picks.length") == 1)
+        page.click("#btn-nb-next")
+        page.keyboard.press(str((order[1] + 1) % 4 + 1))
+        check("a wrong pick marks both the pick and the right answer",
+              page.locator(".nb-option.ok").count() == 1 and page.locator(".nb-option.no").count() == 1)
+        q = page.evaluate("current()")
+        labels = page.eval_on_selector_all(".nb-label", "ls => ls.map(l => l.textContent)")
+        want = [("Right answer" if j == q["answer"] else q["facts"][j]
+                 or (q["low"] if j < q["answer"] else q["high"])) for j in range(4)]
+        check("after a guess every option is labelled: right, a fact, or too low / too high",
+              labels == want, f"{labels} vs {want}")
+        for i in range(2, 12):
+            page.click("#btn-nb-next")
+            page.keyboard.press(str((order[i] + 1) % 4 + 1))
+        check("the last question offers the score", page.inner_text("#btn-nb-next") == "See your score")
+        page.click("#btn-nb-next")
+        check("the results show 1 of 12", page.inner_text("#nb-verdict .v-head") == "1 of 12",
+              page.inner_text("#nb-verdict .v-head"))
+        check("the results list all twelve, one right",
+              page.locator(".nb-summary li").count() == 12
+              and page.locator(".nb-summary li.ok").count() == 1)
+        page.click("#btn-nb-again")
+        check("play again starts over", not page.is_visible("#nb-results")
+              and page.inner_text("#nb-progress") == "Question 1 of 12")
+        page.set_viewport_size({"width": 375, "height": 800})
+        check("no sideways scroll at phone width",
+              page.evaluate("document.documentElement.scrollWidth <= innerWidth"))
+        page.set_viewport_size({"width": 1280, "height": 1000})
 
         print("\n== images actually load from moma.org ==")
         page.goto(url); page.click("#btn-start"); ready(page)

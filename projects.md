@@ -7,9 +7,9 @@
     - [Chronology](#chronology)
     - [Same Year](#same-year)
     - [Close Up](#close-up)
+    - [MoMA by the numbers](#moma-by-the-numbers)
   - To build
     - [Which tortured artist are you?](#which-tortured-artist-are-you)
-    - [MoMA by the numbers](#moma-by-the-numbers)
     - [4x4](#4x4)
     - [Find the real title](#find-the-real-title) (group game)
     - [Say what you see](#say-what-you-see) (group game)
@@ -27,8 +27,9 @@
 
 Every game here draws on MoMA's public collection data, the same CSVs that
 `fetch_data.py` already downloads: about 160,000 artworks and 16,000 artists.
-The three built games use only the paintings currently on view. The new ones
-can reach further into the collection.
+Chronology, Same Year and Close Up use only the paintings currently on
+view. MoMA by the numbers and the games still to build reach further into the
+collection.
 
 ### Built
 
@@ -66,37 +67,22 @@ each step costs a point. A small locator map shows where on the canvas the
 section sits. Each painting is worth 8 and a wrong label scores 0, so the
 maximum is 32.
 
-### To build
-
-#### Which tortured artist are you?
-
-*A personality quiz that ends in front of a painting.*
-
-About eight light multiple-choice questions ("Your studio is: a barn / a
-loft / your kitchen table / wherever the bar is"). Each answer adds weight to
-a few artists from a hand-picked cast whose lives are as well known as their
-work: Van Gogh, Rothko, Pollock, Kahlo, Basquiat, Gorky, Kirchner, Arbus. The
-highest total wins. The result card shows that artist, one of their works
-MoMA holds, and the gallery where it hangs, if it's on view.
-
-The data supplies the works and the galleries, but not the personalities.
-The cast, the questions and the weights have to be written by hand, the way
-`styles.js` was. The tone should be affectionate rather than making light of
-real suffering, so the questions stay about habits and temperament, not
-illness.
-
 #### MoMA by the numbers
 
 *Twelve questions about the collection, each with four answers.*
 
-A multiple-choice quiz of surprising numbers. Pick one of four answers, see
-the real figure with a sentence of context, and move on. It's scored out of
-12. Most answers can be computed from the CSVs, so `fetch_data.py` could
-regenerate them on each refresh and the quiz would stay true as the
-collection grows.
+*Built: `docs/numbers.html`.* A multiple-choice quiz of surprising numbers.
+Pick one of four answers, see the real figure with a sentence of context,
+and move on. It's scored out of 12. Every answer and every wrong option is
+computed from the CSVs by `build_numbers()` in `fetch_data.py`, so the quiz
+stays true as the collection changes. The game shuffles the question order
+on each play.
 
-The figures below come from the snapshot in `raw/` (August 2026). The right
-answer is in bold.
+This was the original plan, written from the snapshot in `raw/` (August
+2026), with the right answer in bold. The built quiz keeps most of it. It
+drops the curators question, which the data can't answer, in favour of the
+number of artists, and some options moved so the right answer isn't always
+third.
 
 | # | Question | Answers |
 |---|----------|---------|
@@ -132,6 +118,25 @@ Notes for the answer screens:
 The weight and size fields are filled in for only a fraction of the
 records, so questions built on them should say "recorded" and stay
 approximate.
+
+### To build
+
+#### Which tortured artist are you?
+
+*A personality quiz that ends in front of a painting.*
+
+About eight light multiple-choice questions ("Your studio is: a barn / a
+loft / your kitchen table / wherever the bar is"). Each answer adds weight to
+a few artists from a hand-picked cast whose lives are as well known as their
+work: Van Gogh, Rothko, Pollock, Kahlo, Basquiat, Gorky, Kirchner, Arbus. The
+highest total wins. The result card shows that artist, one of their works
+MoMA holds, and the gallery where it hangs, if it's on view.
+
+The data supplies the works and the galleries, but not the personalities.
+The cast, the questions and the weights have to be written by hand, the way
+`styles.js` was. The tone should be affectionate rather than making light of
+real suffering, so the questions stay about habits and temperament, not
+illness.
 
 #### 4x4
 

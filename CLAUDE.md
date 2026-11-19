@@ -7,9 +7,9 @@ is pure reordering — there is no tray or staging area. Five stages, each
 harder than the last. Served straight from `docs/`, no build step — plain
 `<script>` tags load everything.
 
-Two more games sit beside it, linked from a menu across the top of every
-page: **Same Year** (`sameyear.html`) and **Close Up** (`closeup.html`). See
-"The other games" below.
+Three more games sit beside it, linked from a menu across the top of every
+page: **Same Year** (`sameyear.html`), **Close Up** (`closeup.html`) and
+**MoMA by the Numbers** (`numbers.html`). See "The other games" below.
 
 Sibling project to `../museum_flashcards` (Studio Museum in Harlem); the
 palette and the "generated data as a `.js` file" pattern come from there.
@@ -55,15 +55,18 @@ Two things about this machine that are invisible until they bite:
 - `docs/data.js` — generated. `const PAINTINGS = [...]`. Mirrored in
   pretty-printed form at `data/paintings.json` for inspection and diffing.
   Don't hand-edit either; regenerate with `fetch_data.py`.
-- `docs/sameyear.html` + `sameyear.js`, `docs/closeup.html` + `closeup.js`
-  — the two newer games, one page each.
-- `docs/common.js` — helpers and the pointer-drag routine shared by the two
+- `docs/sameyear.html` + `sameyear.js`, `docs/closeup.html` + `closeup.js`,
+  `docs/numbers.html` + `numbers.js` — the three newer games, one page each.
+- `docs/numbers_data.js` — generated, like `data.js`: `const NUMBERS = [...]`,
+  the quiz questions. Mirrored at `data/numbers.json`.
+- `docs/common.js` — helpers and the pointer-drag routine shared by the
   newer games. Never load it on `index.html`: `app.js` predates it, keeps
   its own copies, and the names would collide.
 - `docs/styles.js` — `const STYLES = {id: "abstract" | "representational"}`,
   **hand-made**, unlike `data.js`. See "The other games".
 - `fetch_data.py` — the pipeline. Downloads MoMA's public collection CSVs,
-  filters to the playable pool, and writes both data files.
+  filters to the playable pool, and writes both data files, plus the quiz
+  questions (`build_numbers()`).
 - `NOTES/moma_artists.md`, `NOTES/moma_works.md` — generated, browsable Markdown tables
   of the *whole* collection (every constituent, every artwork), written by
   `fetch_data.py --artists` / `--works`. Not used by the games.
@@ -289,7 +292,7 @@ leaves an invisible overlay swallowing every click on the page.
 
 The menu (`.game-nav`) is plain HTML repeated in each page's markup, with
 `aria-current="page"` on the current game. Adding a game means adding a link
-to all three.
+to every page, and to the menu check in `test_game.py`.
 
 ### Same Year
 
@@ -351,3 +354,35 @@ sends `Access-Control-Allow-Origin: *`; the images are loaded with
 first section falls back to any cell. Very long, thin paintings (aspect
 over 2.5) are left out, since their sections are too slender to read.
 
+### MoMA by the Numbers
+
+Twelve multiple-choice questions about the whole collection, not just the
+paintings on view: Richard Serra's total weight, the oldest dated work,
+works titled "Untitled", and so on. The four options stack in one column,
+smallest at the top, and all look the same until the player picks one:
+nothing is focused or pre-selected (keys 1–4 also pick). After the guess,
+every option gets a label: "Right answer", or a fact about that option if
+the data has one ("That's every work by Picasso, 1,407 of them…"), or else
+"Too low" / "Too high" ("Too early" / "Too late" for years). A note gives the
+exact figure, with the work itself when the question is about one. Scored
+out of 12; random guessing averages 3.
+
+**Every figure, and every wrong option, is computed** in `build_numbers()`
+in `fetch_data.py`, so a refresh can't leave a question whose options no
+longer include the answer. Wrong options are multiples or offsets of the
+true figure, rounded to two significant figures. Facts hang on the nearest
+wrong option via `place_facts()`.
+
+**The quiz undershoots as often as it overshoots.** Each question fixes
+where the true figure falls among its options, and across the twelve the
+smallest and largest options are each right twice and the middle two eight
+times, about the 1/5 · 3/5 · 1/5 split asked for. `test_game.py` checks the
+balance, so a new question has to keep it. To change
+a question, edit `build_numbers()` and re-run `fetch_data.py`; never edit
+`numbers_data.js`.
+
+The weight and size columns are filled in for only a few records (9 of
+Serra's 54 works have a weight), which is why those questions say
+"recorded". `projects.md` once planned a question on the number of MoMA's
+curators; it was dropped because the data can't answer it, and replaced by
+the count of artists.

@@ -1,0 +1,251 @@
+[
+  {
+    "id": "serra-weight",
+    "question": "Total recorded weight of Richard Serra's works at MoMA",
+    "options": [
+      "33 tonnes",
+      "110 tonnes",
+      "330 tonnes",
+      "1,100 tonnes"
+    ],
+    "answer": 2,
+    "facts": [
+      null,
+      "Too low: Switch alone weighs 185 tonnes.",
+      null,
+      null
+    ],
+    "low": "Too low",
+    "high": "Too high",
+    "note": "About 330 tonnes, but only 9 of his 54 works have a recorded weight.",
+    "image": "https://www.moma.org/media/W1siZiIsIjQyMzkyOSJdLFsicCIsImNvbnZlcnQiLCItcmVzaXplIDEwMjR4MTAyNFx1MDAzZSJdXQ.jpg?sha=a60b3e75a2ca8a8d",
+    "url": "https://www.moma.org/collection/works/80990",
+    "caption": "Richard Serra, Switch, 1999"
+  },
+  {
+    "id": "oldest",
+    "question": "The year the oldest dated work in the collection was made",
+    "options": [
+      "1768",
+      "1808",
+      "1848",
+      "1888"
+    ],
+    "answer": 0,
+    "facts": [
+      null,
+      "Too late. The oldest illustrated book dates from 1799, by Francisco de Goya.",
+      "Too late. The oldest drawing dates from 1865, by Odilon Redon.",
+      "Too late. The oldest painting dates from 1872, by Odilon Redon."
+    ],
+    "low": "Too early",
+    "high": "Too late",
+    "note": "1768. The oldest dated works are 5 pieces by Josiah Wedgwood, including Partial Coffee and Tea Service.",
+    "image": "https://www.moma.org/media/W1siZiIsIjIyODgzMSJdLFsicCIsImNvbnZlcnQiLCItcmVzaXplIDEwMjR4MTAyNFx1MDAzZSJdXQ.jpg?sha=f2a54689cf2916bd",
+    "url": "https://www.moma.org/collection/works/2767",
+    "caption": "Josiah Wedgwood, Partial Coffee and Tea Service, 1768"
+  },
+  {
+    "id": "total-works",
+    "question": "Works in MoMA's public collection data",
+    "options": [
+      "59,000",
+      "160,000",
+      "590,000",
+      "1,600,000"
+    ],
+    "answer": 1,
+    "facts": [
+      "Too low: Drawings & Prints alone holds 82,220.",
+      null,
+      null,
+      null
+    ],
+    "low": "Too low",
+    "high": "Too high",
+    "note": "160,705 works, from paintings and films to chairs, posters and architectural drawings."
+  },
+  {
+    "id": "top-artist",
+    "question": "The artist with the most works in the collection",
+    "options": [
+      "Eugène Atget",
+      "Louise Bourgeois",
+      "Pablo Picasso",
+      "Ludwig Mies van der Rohe"
+    ],
+    "answer": 3,
+    "facts": [
+      "5,032 works",
+      "3,336 works",
+      "1,407 works",
+      null
+    ],
+    "low": "Too low",
+    "high": "Too high",
+    "note": "Ludwig Mies van der Rohe, with 16,272 works. 16,191 of them are in the Mies van der Rohe Archive, the drawings and papers he gave the museum."
+  },
+  {
+    "id": "untitled",
+    "question": "Works titled exactly \"Untitled\"",
+    "options": [
+      "260",
+      "850",
+      "3,000",
+      "8,500"
+    ],
+    "answer": 3,
+    "facts": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "low": "Too low",
+    "high": "Too high",
+    "note": "8,522. Counting titles that start with it, such as \"Untitled (Blue)\", there are 19,508."
+  },
+  {
+    "id": "picasso-paintings",
+    "question": "Paintings by Picasso in the collection",
+    "options": [
+      "12",
+      "55",
+      "140",
+      "1,400"
+    ],
+    "answer": 1,
+    "facts": [
+      null,
+      null,
+      null,
+      "That's every work by Picasso, 1,407 of them, including 896 illustrated books and 357 prints."
+    ],
+    "low": "Too low",
+    "high": "Too high",
+    "note": "55 paintings, out of 1,407 works by Picasso in all."
+  },
+  {
+    "id": "tallest",
+    "question": "Height of the tallest painting",
+    "options": [
+      "5 m",
+      "10 m",
+      "20 m",
+      "40 m"
+    ],
+    "answer": 1,
+    "facts": [
+      "Too low, but the runner-up is close: David Novros's VI:XXXII, 4.5 m.",
+      null,
+      null,
+      null
+    ],
+    "low": "Too low",
+    "high": "Too high",
+    "note": "1,011 cm: Niele Toroni's Imprints of a No. 50 Paintbrush Repeated at Regular Intervals of 30 cm.",
+    "image": "https://www.moma.org/media/W1siZiIsIjMxODgxMiJdLFsicCIsImNvbnZlcnQiLCItcmVzaXplIDEwMjR4MTAyNFx1MDAzZSJdXQ.jpg?sha=9c37b9efae63ebe4",
+    "url": "https://www.moma.org/collection/works/147099",
+    "caption": "Niele Toroni, Imprints of a No. 50 Paintbrush Repeated at Regular Intervals of 30 cm, 1969"
+  },
+  {
+    "id": "women",
+    "question": "Women's share of the artists whose gender is recorded",
+    "options": [
+      "5%",
+      "20%",
+      "35%",
+      "50%"
+    ],
+    "answer": 1,
+    "facts": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "low": "Too low",
+    "high": "Too high",
+    "note": "20%: 2,530 women out of 12,648 artists with a recorded gender. Another 3,286 artists have none recorded."
+  },
+  {
+    "id": "acquired",
+    "question": "The year MoMA acquired the most works",
+    "options": [
+      "1929",
+      "1964",
+      "1968",
+      "2008"
+    ],
+    "answer": 2,
+    "facts": [
+      "Just 9 works, in the museum's first year.",
+      "12,997 works acquired.",
+      null,
+      "7,438 works acquired."
+    ],
+    "low": "Too low",
+    "high": "Too high",
+    "note": "1968, with 20,527 works. The earliest acquisitions date from 1929, the year the museum opened."
+  },
+  {
+    "id": "on-view",
+    "question": "The share of the collection on view right now",
+    "options": [
+      "0.8%",
+      "5%",
+      "12%",
+      "25%"
+    ],
+    "answer": 0,
+    "facts": [
+      null,
+      null,
+      "Too high for the whole collection, but about right for paintings: 298 of 2,453 are on view.",
+      null
+    ],
+    "low": "Too low",
+    "high": "Too high",
+    "note": "0.8%: 1,248 of 160,705 works were hanging at the time of the snapshot."
+  },
+  {
+    "id": "nationalities",
+    "question": "Nationalities represented among the artists",
+    "options": [
+      "42",
+      "92",
+      "142",
+      "192"
+    ],
+    "answer": 2,
+    "facts": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "low": "Too low",
+    "high": "Too high",
+    "note": "142, not counting artists whose nationality is unknown."
+  },
+  {
+    "id": "artists",
+    "question": "Artists, designers and other makers in the collection",
+    "options": [
+      "1,600",
+      "5,300",
+      "16,000",
+      "48,000"
+    ],
+    "answer": 2,
+    "facts": [
+      null,
+      "Too low: there are 5,438 American artists alone.",
+      null,
+      null
+    ],
+    "low": "Too low",
+    "high": "Too high",
+    "note": "15,934, counting everyone MoMA credits: painters, photographers, architects, designers, filmmakers and firms."
+  }
+]
