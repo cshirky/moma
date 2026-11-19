@@ -581,6 +581,11 @@ def main():
         json.dump(numbers, fh, ensure_ascii=False, separators=(",", ":"))
         fh.write(";\n")
     print(f"Wrote {numbers_json} and {numbers_js} ({len(numbers)} questions)")
+
+    # data.js and numbers_data.js just changed, so their pages need new
+    # fingerprints on the script tags, or browsers keep the cached copies.
+    import version_assets
+    version_assets.main([])
     if args.artists:
         write_artists(artworks, artists)
     if args.works:

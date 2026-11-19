@@ -25,6 +25,16 @@ minute or two. There is no build step of any kind. Run `python3 test_game.py`
 before pushing; it drives the real app in Chromium and is the only thing
 standing between a bad change and the public URL.
 
+**Every local script and stylesheet tag carries a content fingerprint**
+(`app.js?v=d89a66e7`), so a changed file gets a new URL and no browser can
+run a fresh page against a stale cached script, or the reverse. Pages lets
+browsers cache assets for ten minutes, so without this a deploy is briefly
+inconsistent. After changing anything in `docs/`, run
+`python3 version_assets.py` to restamp the tags. `test_game.py` fails if any
+are stale, and `fetch_data.py` restamps by itself since it rewrites the data
+files. Adding a new script or stylesheet needs nothing extra: the stamper
+finds every bare local `.js` / `.css` reference.
+
 For local work, serve `docs/` on any static server
 (`python3 -m http.server 8765` from inside `docs/`) — the game is plain
 files, so a refresh picks up every edit.
@@ -74,6 +84,8 @@ Two things about this machine that are invisible until they bite:
   of the *whole* collection (every constituent, every artwork), written by
   `fetch_data.py --artists` / `--works`. Not used by the games.
   `moma_works.md` is ~25 MB, too big for GitHub to render; read it raw.
+- `version_assets.py` — stamps each script and stylesheet tag in
+  `docs/*.html` with a fingerprint of the file. See "Deploying".
 - `test_game.py` — end-to-end Playwright test. Run it after any change to
   `app.js` or `style.css`.
 - `raw/` — cached source CSVs, gitignored (`Artworks.csv` is ~73 MB).
@@ -375,12 +387,10 @@ Close Up's is `CLOSE_UP`; `pixelated.js` loads after `closeup.js` and sets
 `VIEW = PIXELATED` before `init()` reads it. A change to the shared label
 logic therefore changes both games, and `test_game.py` covers both.
 
-**Bump the `?v=` on both pages' `closeup.js` and `pixelated.js` script
-tags whenever either file changes.** Pages lets browsers cache scripts for
-ten minutes, and a cached old `closeup.js` with a new `pixelated.js` fails
-silently: the old engine has no `VIEW`, so the assignment does nothing and
-Pixelated quietly draws Close Up's sections. That happened on the first
-deploy.
+A cached old `closeup.js` with a new `pixelated.js` fails silently: the old
+engine has no `VIEW`, so the assignment does nothing and Pixelated quietly
+draws Close Up's sections. That happened on the first deploy, and is why
+every asset is now fingerprinted (see "Deploying").
 
 Colours are exact means, not the browser's downscale: each painting is
 sampled once onto a 60×60 canvas (60 divides by every grid size), and each

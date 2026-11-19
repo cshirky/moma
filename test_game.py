@@ -45,6 +45,11 @@ def solve_with_keyboard(page):
             page.keyboard.press("ArrowUp")
 
 def main():
+    print("\n== asset versions ==")
+    import version_assets
+    stale = [p for p, _ in version_assets.stale_pages()]
+    check("every script and stylesheet tag carries its file's current fingerprint "
+          "(run python3 version_assets.py)", not stale, stale)
     httpd, url = serve()
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -546,7 +551,10 @@ def main():
         box_px = page.evaluate(f"""(() => {{
             const c = document.querySelector('.cu-view[data-id="{ids[1]}"] canvas');
             const r = region('{ids[1]}', state.level['{ids[1]}']), lw = 2 * (window.devicePixelRatio || 1);
-            const x = Math.round(r.x * c.width + lw), y = Math.round((r.y + r.h / 2) * c.height);
+            // The white stroke spans [edge + lw/2, edge + 3lw/2]; the first whole
+            // pixel at or after its start lies entirely inside it, wherever the
+            // edge falls. Rounding could land on a pixel half over the dark underlay.
+            const x = Math.ceil(r.x * c.width + lw / 2), y = Math.round((r.y + r.h / 2) * c.height);
             return Array.from(c.getContext('2d').getImageData(x, y, 1, 1).data.slice(0, 3)); }})()""")
         check("the reveal boxes the last section the player saw, in white", min(box_px) >= 240, box_px)
         page.click("#btn-cu-next")
