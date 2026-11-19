@@ -375,6 +375,13 @@ Close Up's is `CLOSE_UP`; `pixelated.js` loads after `closeup.js` and sets
 `VIEW = PIXELATED` before `init()` reads it. A change to the shared label
 logic therefore changes both games, and `test_game.py` covers both.
 
+**Bump the `?v=` on both pages' `closeup.js` and `pixelated.js` script
+tags whenever either file changes.** Pages lets browsers cache scripts for
+ten minutes, and a cached old `closeup.js` with a new `pixelated.js` fails
+silently: the old engine has no `VIEW`, so the assignment does nothing and
+Pixelated quietly draws Close Up's sections. That happened on the first
+deploy.
+
 Colours are exact means, not the browser's downscale: each painting is
 sampled once onto a 60×60 canvas (60 divides by every grid size), and each
 cell averages its block of samples. Reading pixels relies on the same CORS
