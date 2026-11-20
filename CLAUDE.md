@@ -465,10 +465,12 @@ server" rule for this game alone:
   sets). Falls back to an in-memory Map locally; on Vercel it errors rather
   than silently losing rooms. Rooms expire after a day.
 - `lib/generate.js` — the only place that knows how the picture is made.
-  `OPENAI_API_KEY` set → OpenAI Images (`OPENAI_IMAGE_MODEL`, default
-  `gpt-image-1`; `OPENAI_IMAGE_QUALITY`, default `medium`; JPEG so it fits in
-  Redis). Unset → a deterministic placeholder SVG, so the game runs with no
-  key. `MAX_DAILY_IMAGES` (default 200) caps spend.
+  `AI_GATEWAY_API_KEY` set → Vercel AI Gateway's `/v1/images/generations`
+  with `AI_GATEWAY_IMAGE_MODEL` (default `bfl/flux-3-image-klein`, ~1¢ an
+  image; list models at `https://ai-gateway.vercel.sh/v1/models`). Unset → a
+  deterministic placeholder SVG, so the game runs with no key.
+  `MAX_DAILY_IMAGES` (default 200) caps spend; the gateway key should carry its
+  own budget too.
 - `vercel.json` serves `docs/` as the site, so Vercel hosts the whole thing
   same-origin. `API_BASE` at the top of `docs/untitled.js` is what the GitHub
   Pages copy uses to reach the Vercel API (`https://moma-mu.vercel.app`; the
