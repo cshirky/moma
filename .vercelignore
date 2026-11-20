@@ -1,0 +1,9 @@
+raw/
+moma_works.md
+moma_artists.md
+projects.md
+__pycache__/
+*.pyc
+test_*.py
+fetch_data.py
+data/

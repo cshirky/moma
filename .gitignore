@@ -1,3 +1,6 @@
 raw/
 __pycache__/
 *.pyc
+.vercel/
+.vercel
+.env*

@@ -471,8 +471,10 @@ server" rule for this game alone:
   key. `MAX_DAILY_IMAGES` (default 200) caps spend.
 - `vercel.json` serves `docs/` as the site, so Vercel hosts the whole thing
   same-origin. `API_BASE` at the top of `docs/untitled.js` is what the GitHub
-  Pages copy uses to reach the Vercel API — **it still says `REPLACE-ME`** until
-  the first deploy.
+  Pages copy uses to reach the Vercel API (`https://moma-mu.vercel.app`; the
+  Vercel project is `moma`, linked to this repo, with Vercel Authentication
+  turned off so the public can play). `.vercelignore` keeps the big generated
+  files out of the upload.
 - `dev_server.js` — local stand-in (`node dev_server.js 8766`) serving `docs/`
   plus the API with the in-memory store. `test_untitled.py` starts it itself.
 

@@ -9,7 +9,7 @@
 
 /* Where the API lives. Served from Vercel, it is same-origin; from GitHub
    Pages it is the Vercel deployment. */
-const API_BASE = location.hostname.endsWith('github.io') ? 'https://REPLACE-ME.vercel.app' : '';
+const API_BASE = location.hostname.endsWith('github.io') ? 'https://moma-mu.vercel.app' : '';
 const API = `${API_BASE}/api/untitled`;
 
 const MAX_WORDS = 50;
