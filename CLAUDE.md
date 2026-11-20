@@ -48,13 +48,13 @@ Two things about this machine that are invisible until they bite:
   is not supported" because the gh credential helper reads the same variable.
   Prefix either with `env -u GH_TOKEN`: `env -u GH_TOKEN git push origin
   main`.
-- **Commits here are authored `cshirky <cshirky@penguin>`**, matching
-  `museum_flashcards`, to keep a personal email out of public commit history.
-  The repo's local git identity is set to this, so it holds by default —
-  don't override it with `-c user.email`, and don't reintroduce the address
-  when copying commands between projects. History was rewritten once before
-  the first push to remove it; doing that after people have cloned is much
-  worse than getting it right up front.
+- **Commit identity: `cshirky@gmail.com` is fine, in this and any repo** (the
+  owner said so explicitly, 2026-11-20). Earlier commits here are authored
+  `cshirky <cshirky@penguin>`, from when a personal email was being kept out
+  of public history; that history stays as it is, and there is no need to
+  rewrite it. The repo's local git identity is `cshirky <cshirky@gmail.com>`
+  — if it ever goes missing, git falls back to the global config, which is
+  the same address, so nothing leaks either way.
 
 ## Architecture
 
