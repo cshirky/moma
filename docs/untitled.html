@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Untitled — A Two-Player Game of Describing Paintings</title>
+<meta name="description" content="Five paintings, all called Untitled. One player describes one in words; an AI paints from the description; the other player guesses which it was.">
+<link rel="stylesheet" href="style.css">
+<script data-goatcounter="https://cshirky-gh.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+<nav class="game-nav" aria-label="Games">
+  <a href="./">Chronology</a>
+  <a href="sameyear.html">Same Year</a>
+  <a href="closeup.html">Close Up</a>
+  <a href="pixelated.html">Pixelated</a>
+  <a href="numbers.html">By the Numbers</a>
+  <a href="untitled.html" aria-current="page">Untitled</a>
+</nav>
+
+<header class="app-header">
+  <h1>Untitled</h1>
+  <p class="subtitle">Describe a painting in words. Can your partner find it?</p>
+</header>
+
+<section class="screen" id="un-start">
+  <p class="intro">Two players, five paintings, all called <em>Untitled</em>. One of you
+  secretly gets one painting to describe in 50 words or fewer. An AI paints a picture
+  from that description, and the other player sees only the AI&rsquo;s picture and has
+  to guess which of the five it came from.</p>
+  <div class="actions">
+    <button class="btn btn-primary btn-lg" id="btn-un-new">Start a game</button>
+    <p class="un-note" id="un-start-error" role="alert" hidden></p>
+  </div>
+</section>
+
+<section class="screen" id="un-play" hidden>
+  <p class="un-role" id="un-role"></p>
+
+  <div class="un-share" id="un-share" hidden>
+    <p>Send this link to the other player:</p>
+    <div class="un-share-row">
+      <input type="text" id="un-link" readonly aria-label="Link to share">
+      <button class="btn" id="btn-un-copy">Copy</button>
+    </div>
+  </div>
+
+  <div class="un-ai" id="un-ai" hidden>
+    <img id="un-ai-img" alt="The picture the AI made from the description">
+    <p class="un-ai-cap">The AI&rsquo;s picture. Which of these did it come from?</p>
+  </div>
+
+  <div class="un-grid" id="un-grid" aria-label="Five paintings, all titled Untitled"></div>
+
+  <div class="un-panel" id="un-describe" hidden>
+    <label for="un-text">Describe the highlighted painting in 50 words or fewer.
+      Don&rsquo;t just say what is in it; say what would let someone pick it out.</label>
+    <textarea id="un-text" rows="4" maxlength="600"></textarea>
+    <div class="un-row">
+      <span class="un-count" id="un-count" aria-live="polite">0 / 50 words</span>
+      <button class="btn btn-primary btn-lg" id="btn-un-send" disabled>Send description</button>
+    </div>
+    <p class="un-note is-bad" id="un-error" role="alert" hidden></p>
+  </div>
+
+  <p class="verdict un-status" id="un-status" role="status" aria-live="polite"></p>
+
+  <div class="actions">
+    <button class="btn btn-primary btn-lg" id="btn-un-guess" hidden disabled>Make my guess</button>
+    <button class="btn btn-primary btn-lg" id="btn-un-again" hidden>Play again</button>
+  </div>
+
+  <div class="un-reveal" id="un-reveal" hidden>
+    <h2>What was said</h2>
+    <blockquote id="un-said"></blockquote>
+  </div>
+</section>
+
+<footer class="app-footer">
+  <p>Images and data from <a href="https://github.com/MuseumofModernArt/collection" target="_blank" rel="noopener">The Museum of Modern Art&rsquo;s public collection dataset</a>.</p>
+  <p>Pictures in the middle of the game are made by an AI image generator from the first player&rsquo;s words.</p>
+</footer>
+
+<script src="data.js"></script>
+<script src="styles.js"></script>
+<script src="common.js"></script>
+<script src="untitled.js"></script>
+</body>
+</html>

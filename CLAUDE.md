@@ -7,10 +7,11 @@ is pure reordering — there is no tray or staging area. Five stages, each
 harder than the last. Served straight from `docs/`, no build step — plain
 `<script>` tags load everything.
 
-Four more games sit beside it, linked from a menu across the top of every
+Five more games sit beside it, linked from a menu across the top of every
 page: **Same Year** (`sameyear.html`), **Close Up** (`closeup.html`),
-**Pixelated** (`pixelated.html`) and **MoMA by the Numbers**
-(`numbers.html`). See "The other games" below.
+**Pixelated** (`pixelated.html`), **MoMA by the Numbers** (`numbers.html`) and
+the two-player **Untitled** (`untitled.html`). See "The other games" below.
+Untitled is the one part of the project with a backend; see "Untitled".
 
 Sibling project to `../museum_flashcards` (Studio Museum in Harlem); the
 palette and the "generated data as a `.js` file" pattern come from there.
@@ -440,3 +441,40 @@ Serra's 54 works have a weight), which is why those questions say
 "recorded". `projects.md` once planned a question on the number of MoMA's
 curators; it was dropped because the data can't answer it, and replaced by
 the count of artists.
+
+### Untitled
+
+Two players, five abstract MoMA paintings by five different artists, all
+shown as *Untitled* (no artist, real title or date until the end). A is the
+describer: the server picks which of the five is the target, A sees it
+highlighted and writes up to 50 words. The server turns that into an image;
+B sees only the image and picks which painting it came from. **B never
+receives the description or target, and A never receives the image, until B
+has guessed** — the server enforces this per player token in `view()` and the
+`image` action, not the page, and `test_untitled.py` probes the API directly
+to prove it. Don't move any of that logic client-side.
+
+This is the project's **only backend**, which overrides the old "static, no
+server" rule for this game alone:
+
+- `api/untitled.js` — one Vercel function, routed by `?action=` (create, join,
+  state, describe, guess, image). Needs `maxDuration: 60` because `describe`
+  waits for image generation.
+- `lib/store.js` — Upstash Redis over REST (env `KV_REST_API_URL`/`_TOKEN` or
+  `UPSTASH_REDIS_REST_URL`/`_TOKEN`, which the Vercel Upstash integration
+  sets). Falls back to an in-memory Map locally; on Vercel it errors rather
+  than silently losing rooms. Rooms expire after a day.
+- `lib/generate.js` — the only place that knows how the picture is made.
+  `OPENAI_API_KEY` set → OpenAI Images (`OPENAI_IMAGE_MODEL`, default
+  `gpt-image-1`; `OPENAI_IMAGE_QUALITY`, default `medium`; JPEG so it fits in
+  Redis). Unset → a deterministic placeholder SVG, so the game runs with no
+  key. `MAX_DAILY_IMAGES` (default 200) caps spend.
+- `vercel.json` serves `docs/` as the site, so Vercel hosts the whole thing
+  same-origin. `API_BASE` at the top of `docs/untitled.js` is what the GitHub
+  Pages copy uses to reach the Vercel API — **it still says `REPLACE-ME`** until
+  the first deploy.
+- `dev_server.js` — local stand-in (`node dev_server.js 8766`) serving `docs/`
+  plus the API with the in-memory store. `test_untitled.py` starts it itself.
+
+Roles are tokens kept in `localStorage` per room; opening the room link with no
+saved token takes the free guesser seat, so the link is single-use for B.

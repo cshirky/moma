@@ -416,8 +416,8 @@ def main():
               page.evaluate("[...document.querySelectorAll('#pips li')].map(l=>l.className).join('|')"))
 
         print("\n== menu of games ==")
-        games = ["Chronology", "Same Year", "Close Up", "Pixelated", "By the Numbers"]
-        for path, current_name in zip(["", "sameyear.html", "closeup.html", "pixelated.html", "numbers.html"], games):
+        games = ["Chronology", "Same Year", "Close Up", "Pixelated", "By the Numbers", "Untitled"]
+        for path, current_name in zip(["", "sameyear.html", "closeup.html", "pixelated.html", "numbers.html", "untitled.html"], games):
             page.goto(url + path)
             names = page.eval_on_selector_all(".game-nav a", "as => as.map(a => a.textContent)")
             cur = page.eval_on_selector_all('.game-nav a[aria-current="page"]', "as => as.map(a => a.textContent)")

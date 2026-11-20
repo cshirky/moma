@@ -1,0 +1,6 @@
+{
+  "name": "moma-chronology",
+  "private": true,
+  "description": "Static MoMA games in docs/, plus the Untitled game's API in api/.",
+  "scripts": { "dev": "node dev_server.js" }
+}
