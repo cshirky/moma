@@ -7,3 +7,5 @@ __pycache__/
 test_*.py
 fetch_data.py
 data/
+NOTES/
+version_assets.py
